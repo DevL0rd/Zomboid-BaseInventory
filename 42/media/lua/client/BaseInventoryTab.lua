@@ -1,17 +1,18 @@
 --[[
-    Base Inventory - Base-Wide Inventory Tabs
-    -----------------------------------------
-    Adds inventory tabs to the loot window sourced from your Home Inventory zones while you're
-    standing in your base:
-      - "Base Inventory" : every container across ALL loaded zones, merged (deduped).
-      - One tab per named zone (only shown when 2+ zones are loaded).
+    Base Inventory - per-zone inventory tabs
+    ----------------------------------------
+    For each Base zone you're currently in range of, adds a loot-window tab (named after the zone)
+    that merges every container in that zone into one inventory you can browse, take from, and
+    craft/cook with. One tab per in-range zone - no "all zones" combined tab. If no zones are in
+    range, a single empty "Base Inventory" tab is shown so the right-click Manage Zones menu stays
+    reachable.
 
-    Selection is "sticky": once you click a Base Inventory tab it stays selected across loot-window
-    refreshes - moving around or approaching world containers won't switch you off it. Clicking any
-    real container (or scrolling to one) switches away. No pin/keybind needed.
+    Selection is sticky: clicking a Base Inventory tab keeps it selected across loot-window refreshes
+    (moving / approaching world containers won't switch you off it); clicking or scrolling to a real
+    container switches away.
 
     Crafting (cooking / AutoCook / hand-craft) pulls from the REAL loaded zone containers via the
-    getContainers hook; the synthetic tab container is always stripped from that list, so items are
+    getContainers hook; the synthetic tab containers are always stripped from that list, so items are
     never double-counted and away/unloaded items can't be used.
 
     Loot-window hooking adapted from Proximity Inventory (B42.19 fork); source changed to the zone.
@@ -26,15 +27,14 @@ BIT.options = PZAPI.ModOptions:create("BaseInventory", "Base Inventory")
 BIT.isEnabled = BIT.options:addTickBox("BaseInventory_isEnabled", "Enable the Base Inventory tabs", true)
 
 -- Per-player state
-BIT.itemContainer = {}       -- [playerNum] = combined ItemContainer
-BIT.zoneItemContainer = {}   -- [playerNum][zoneKey] = ItemContainer
-BIT.inventoryButtonRef = {}  -- [playerNum] = combined ISButton
-BIT.zoneButtonRefs = {}      -- [playerNum] = { { btn=, containers={} }, ... }
-BIT.allSynthetic = {}        -- [playerNum] = { ItemContainer... } active this refresh (crafting strip)
-BIT._lastZones = {}          -- [playerNum] = result of getZonesWithContainers
-BIT.stickContainer = {}      -- [playerNum] = the baseInv ItemContainer the user is viewing, or nil
+BIT.zoneItemContainer = {}    -- [playerNum][zoneKey] = ItemContainer ("baseInvZone")
+BIT.placeholderContainer = {} -- [playerNum] = empty ItemContainer ("baseInv") shown when no zones in range
+BIT.zoneButtonRefs = {}       -- [playerNum] = { { btn=, containers={} }, ... }
+BIT.allSynthetic = {}         -- [playerNum] = { ItemContainer... } active this refresh (crafting strip)
+BIT._lastZones = {}           -- [playerNum] = result of getInRangeZones
+BIT.stickContainer = {}       -- [playerNum] = the baseInv container the user is viewing, or nil
 
-BIT.icon = getTexture("media/textures/HomeInventory_Refresh.png") or getTexture("media/ui/Panel_Icon_Pin.png")
+BIT.icon = getTexture("media/textures/BaseInventory_Refresh.png") or getTexture("media/ui/Panel_Icon_Pin.png")
 
 local function isBaseInvType(t)
     return t == "baseInv" or t == "baseInvZone"
@@ -42,7 +42,7 @@ end
 
 -- ── Zone reading + container enumeration ────────────────────────────────────────────
 local function getZones()
-    local md = ModData.getOrCreate("HomeInventoryZones")
+    local md = ModData.getOrCreate("BaseInventoryZones")
     return (md and md.zones) or {}
 end
 
@@ -58,8 +58,8 @@ local function playerNearZone(px, py, pz, zone)
     return px >= x1 - m and px <= x2 + m and py >= y1 - m and py <= y2 + m
 end
 
--- Per-zone container lists for zones the player is currently in/near (loaded squares only).
-local function getZonesWithContainers(playerObj)
+-- Every zone the player is in range of, each with its loaded containers (may be empty).
+local function getInRangeZones(playerObj)
     local out = {}
     local sq = playerObj:getCurrentSquare()
     if not sq then return out end
@@ -87,9 +87,7 @@ local function getZonesWithContainers(playerObj)
                     end
                 end
             end
-            if #conts > 0 then
-                out[#out + 1] = { zone = zone, key = (zone.name or (x1 .. "," .. y1 .. "," .. zz)), containers = conts }
-            end
+            out[#out + 1] = { zone = zone, key = (zone.name or (x1 .. "," .. y1 .. "," .. zz)), containers = conts }
         end
     end
     return out
@@ -97,7 +95,7 @@ end
 
 local function getZoneContainersFlat(playerObj)
     local out, seen = {}, {}
-    for _, z in ipairs(getZonesWithContainers(playerObj)) do
+    for _, z in ipairs(getInRangeZones(playerObj)) do
         for _, c in ipairs(z.containers) do
             if not seen[c] then seen[c] = true; out[#out + 1] = c end
         end
@@ -113,11 +111,6 @@ local function newSynthetic(name)
     return c
 end
 
-local function getCombinedContainer(playerNum)
-    if not BIT.itemContainer[playerNum] then BIT.itemContainer[playerNum] = newSynthetic("baseInv") end
-    return BIT.itemContainer[playerNum]
-end
-
 local function getZoneContainer(playerNum, key)
     BIT.zoneItemContainer[playerNum] = BIT.zoneItemContainer[playerNum] or {}
     if not BIT.zoneItemContainer[playerNum][key] then
@@ -126,52 +119,45 @@ local function getZoneContainer(playerNum, key)
     return BIT.zoneItemContainer[playerNum][key]
 end
 
--- ── begin: create the tab buttons (combined always; per-zone when 2+ zones loaded) ──
+local function getPlaceholderContainer(playerNum)
+    if not BIT.placeholderContainer[playerNum] then
+        BIT.placeholderContainer[playerNum] = newSynthetic("baseInv")
+    end
+    return BIT.placeholderContainer[playerNum]
+end
+
+-- ── begin: one tab per in-range zone, or a single empty placeholder tab ──────────────
 local function addBaseInventoryButtons(invSelf)
     local pnum = invSelf.player
     local playerObj = getSpecificPlayer(pnum)
-    BIT.inventoryButtonRef[pnum] = nil
     BIT.zoneButtonRefs[pnum] = {}
     BIT.allSynthetic[pnum] = {}
     if not playerObj then return end
 
-    local zones = getZonesWithContainers(playerObj)
+    local zones = getInRangeZones(playerObj)
     BIT._lastZones[pnum] = zones
-    -- Combined tab is always created so it stays right-clickable even away from base.
 
-    local combined = getCombinedContainer(pnum)
-    combined:clear()
-    local cbtn = invSelf:addContainerButton(combined, BIT.icon, "Base Inventory")
-    BIT.inventoryButtonRef[pnum] = cbtn
-    BIT.allSynthetic[pnum][#BIT.allSynthetic[pnum] + 1] = combined
+    if #zones == 0 then
+        -- No zones in range: keep one empty tab so its right-click (Manage Zones) still works.
+        local ph = getPlaceholderContainer(pnum)
+        ph:clear()
+        invSelf:addContainerButton(ph, BIT.icon, "Base Inventory")
+        BIT.allSynthetic[pnum][#BIT.allSynthetic[pnum] + 1] = ph
+        return
+    end
 
-    if #zones > 1 then
-        for _, z in ipairs(zones) do
-            local sc = getZoneContainer(pnum, z.key)
-            sc:clear()
-            local b = invSelf:addContainerButton(sc, BIT.icon, z.zone.name or z.key)
-            BIT.zoneButtonRefs[pnum][#BIT.zoneButtonRefs[pnum] + 1] = { btn = b, containers = z.containers }
-            BIT.allSynthetic[pnum][#BIT.allSynthetic[pnum] + 1] = sc
-        end
+    for _, z in ipairs(zones) do
+        local sc = getZoneContainer(pnum, z.key)
+        sc:clear()
+        local b = invSelf:addContainerButton(sc, BIT.icon, z.zone.name or z.key)
+        BIT.zoneButtonRefs[pnum][#BIT.zoneButtonRefs[pnum] + 1] = { btn = b, containers = z.containers }
+        BIT.allSynthetic[pnum][#BIT.allSynthetic[pnum] + 1] = sc
     end
 end
 
--- ── buttonsAdded: fill each synthetic container from its zone containers ─────────────
+-- ── buttonsAdded: fill each zone tab from its containers ────────────────────────────
 local function onButtonsAdded(invSelf)
     local pnum = invSelf.player
-    local zones = BIT._lastZones[pnum]
-    if not zones then return end
-
-    local cbtn = BIT.inventoryButtonRef[pnum]
-    if cbtn then
-        local seen = {}
-        for _, z in ipairs(zones) do
-            for _, c in ipairs(z.containers) do
-                if not seen[c] then seen[c] = true; cbtn.inventory:getItems():addAll(c:getItems()) end
-            end
-        end
-    end
-
     for _, zr in ipairs(BIT.zoneButtonRefs[pnum] or {}) do
         for _, c in ipairs(zr.containers) do
             zr.btn.inventory:getItems():addAll(c:getItems())
@@ -180,8 +166,15 @@ local function onButtonsAdded(invSelf)
 end
 
 -- ── Sticky selection ────────────────────────────────────────────────────────────────
+local function containerPresent(invSelf, c)
+    for i = 1, #invSelf.backpacks do
+        if invSelf.backpacks[i].inventory == c then return true end
+    end
+    return false
+end
+
 -- Scroll fix: a synthetic container breaks vanilla getCurrentBackpackIndex (returns -1),
--- which turns mouse-wheel into camera zoom. Resolve the index via selectedButton instead.
+-- turning the wheel into camera zoom. Resolve the index via selectedButton instead.
 local function patchMouseWheel(invSelf, playerNum)
     if invSelf._baseInvMouseWheelPatched then return end
     invSelf._baseInvMouseWheelPatched = true
@@ -206,7 +199,7 @@ local function patchMouseWheel(invSelf, playerNum)
         end
 
         if not inContainerArea and not self:isCycleContainerKeyDown() then
-            return true -- consume; don't zoom the camera
+            return true
         end
 
         local currentIndex = -1
@@ -228,7 +221,6 @@ local function patchMouseWheel(invSelf, playerNum)
 
         if unlockedIndex ~= -1 then
             local target = self.backpacks[unlockedIndex].inventory
-            -- scrolling onto/off our tabs updates the sticky selection
             BIT.stickContainer[playerNum] = isBaseInvType(target:getType()) and target or nil
             self:selectContainer(self.backpacks[unlockedIndex])
         end
@@ -242,15 +234,11 @@ local function onRefreshEnd(invSelf)
     local stick = BIT.stickContainer[pnum]
     if not stick then return end
 
-    -- resolve stick to a present backpack; if the zone tab vanished, fall back to combined.
-    local target = nil
-    for i = 1, #invSelf.backpacks do
-        if invSelf.backpacks[i].inventory == stick then target = stick; break end
-    end
+    local target = containerPresent(invSelf, stick) and stick or nil
     if not target then
-        local combined = BIT.itemContainer[pnum]
-        for i = 1, #invSelf.backpacks do
-            if invSelf.backpacks[i].inventory == combined then target = combined; break end
+        -- the zone tab vanished (walked away / zone renamed); fall back to any present tab of ours
+        for _, c in ipairs(BIT.allSynthetic[pnum] or {}) do
+            if containerPresent(invSelf, c) then target = c; break end
         end
         BIT.stickContainer[pnum] = target
     end
@@ -306,9 +294,9 @@ local function openZoneManager()
     local playerObj = getPlayer()
     if not playerObj then return end
     local playerNum = playerObj:getPlayerNum()
-    local ui = HomeInventoryZonePanel.instance
+    local ui = BaseInventoryZonePanel.instance
     if not ui then
-        ui = HomeInventoryZonePanel:new(getPlayerScreenLeft(playerNum) + 100, getPlayerScreenTop(playerNum) + 100, 500, 500, playerObj)
+        ui = BaseInventoryZonePanel:new(getPlayerScreenLeft(playerNum) + 100, getPlayerScreenTop(playerNum) + 100, 500, 500, playerObj)
         ui:initialise()
         ui:addToUIManager()
     else
@@ -327,7 +315,7 @@ function ISInventoryPage:onBackpackRightMouseDown(x, y)
         local playerNum = self.player or (page and page.player) or 0
         local context = ISContextMenu.get(playerNum, getMouseX(), getMouseY())
         if not context then return end
-        context:addOption(getText("UI_HomeInventory_ManageZonesButton"), nil, openZoneManager)
+        context:addOption(getText("UI_BaseInventory_ManageZonesButton"), nil, openZoneManager)
         return
     end
     return old_onBackpackRightMouseDown(self, x, y)
@@ -353,4 +341,4 @@ ISInventoryPaneContextMenu.getContainers = function(character)
     return list
 end
 
-print("[BaseInventory] Base-wide tabs (sticky selection) + crafting + context menu loaded.")
+print("[BaseInventory] Per-zone tabs (sticky selection) + crafting + context menu loaded.")

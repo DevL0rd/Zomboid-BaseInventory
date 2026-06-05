@@ -2,7 +2,7 @@
 
 -- STRUCTURE OF ModData FOR THIS MOD:
 -- ModData
--- --HomeInventoryZones
+-- --BaseInventoryZones
 -- ----zones
 -- ------name
 -- ------x1
@@ -10,21 +10,21 @@
 -- ------x2
 -- ------y2
 
-HomeInventoryManager = HomeInventoryManager or {}
-HomeInventoryManager.zoneItemCache = HomeInventoryManager.zoneItemCache or {}
+BaseInventoryManager = BaseInventoryManager or {}
+BaseInventoryManager.zoneItemCache = BaseInventoryManager.zoneItemCache or {}
 
-function HomeInventoryManager:getAllZones()
+function BaseInventoryManager:getAllZones()
     self.zones = self.zones or {}
     return self.zones
 end
 
-function HomeInventoryManager:addZone(zone)
+function BaseInventoryManager:addZone(zone)
     self.zones = self.zones or {}
     table.insert(self.zones, zone)
     self:save()
 end
 
-function HomeInventoryManager:removeZone(zone)
+function BaseInventoryManager:removeZone(zone)
     local zoneKey = zone.name or (zone.x1 .. "," .. zone.y1 .. "," .. (zone.z or 0))
     self.zoneItemCache[zoneKey] = nil
 
@@ -38,25 +38,35 @@ function HomeInventoryManager:removeZone(zone)
     self:save()
 end
 
-function HomeInventoryManager:save()
-    print("Home Inventory: saving zones.")
-    local md = ModData.getOrCreate("HomeInventoryZones")
+function BaseInventoryManager:save()
+    print("Base Inventory: saving zones.")
+    local md = ModData.getOrCreate("BaseInventoryZones")
     md.zones = self.zones or {}
     md.zoneItemCache = self.zoneItemCache or {} -- overwrite ModData's cache
-    ModData.transmit("HomeInventoryZones")
+    ModData.transmit("BaseInventoryZones")
 end
 
-function HomeInventoryManager:load()
-    print("Home Inventory: loading zones.")
-    local md = ModData.getOrCreate("HomeInventoryZones")
+function BaseInventoryManager:load()
+    print("Base Inventory: loading zones.")
+    local md = ModData.getOrCreate("BaseInventoryZones")
+    -- One-time migration from the original "Home Inventory" mod so existing zones carry over.
+    if (not md.zones) or (#md.zones == 0) then
+        local old = ModData.getOrCreate("HomeInventoryZones")
+        if old and old.zones and #old.zones > 0 then
+            print("Base Inventory: migrating zones from Home Inventory.")
+            md.zones = old.zones
+            md.zoneItemCache = old.zoneItemCache or {}
+            ModData.transmit("BaseInventoryZones")
+        end
+    end
     self.zones = md.zones or {}
     self.zoneItemCache = md.zoneItemCache or {} -- overwrite local cache
-    if HomeInventoryPanel.instance then
-        HomeInventoryPanel.instance:populateList()
+    if BaseInventoryPanel.instance then
+        BaseInventoryPanel.instance:populateList()
     end
 end
 
-function HomeInventoryManager:getItemsInZone(zone)
+function BaseInventoryManager:getItemsInZone(zone)
     local zoneKey = zone.name or (zone.x1 .. "," .. zone.y1 .. "," .. (zone.z or 0))
     local items = {}
 
@@ -135,7 +145,7 @@ function HomeInventoryManager:getItemsInZone(zone)
     end
 end
 
-function HomeInventoryManager:getAllItemInfo()
+function BaseInventoryManager:getAllItemInfo()
     local itemMap = {}
 
 
@@ -223,7 +233,7 @@ function HomeInventoryManager:getAllItemInfo()
     return grouped
 end
 
-function HomeInventoryManager:isZoneLoaded(zone)
+function BaseInventoryManager:isZoneLoaded(zone)
     local zx1, zx2 = math.min(zone.x1, zone.x2), math.max(zone.x1, zone.x2)
     local zy1, zy2 = math.min(zone.y1, zone.y2), math.max(zone.y1, zone.y2)
     local zz = zone.z or 0
@@ -238,7 +248,7 @@ function HomeInventoryManager:isZoneLoaded(zone)
     return false
 end
 
-function HomeInventoryManager:isAnyZoneLoaded()
+function BaseInventoryManager:isAnyZoneLoaded()
     for _, zone in ipairs(self:getAllZones()) do
         if self:isZoneLoaded(zone) then
             return true
@@ -247,7 +257,7 @@ function HomeInventoryManager:isAnyZoneLoaded()
     return false
 end
 
-function HomeInventoryManager:isAllZonesLoaded()
+function BaseInventoryManager:isAllZonesLoaded()
     for _, zone in ipairs(self:getAllZones()) do
         if not self:isZoneLoaded(zone) then
             return false
@@ -256,14 +266,14 @@ function HomeInventoryManager:isAllZonesLoaded()
     return true
 end
 
-function HomeInventoryManager:refresh()
+function BaseInventoryManager:refresh()
     if ISCharacterInfoWindow.instance
-        and ISCharacterInfoWindow.instance.homeInventoryView then
-        ISCharacterInfoWindow.instance.homeInventoryView:populateList()
+        and ISCharacterInfoWindow.instance.baseInventoryView then
+        ISCharacterInfoWindow.instance.baseInventoryView:populateList()
     end
 end
 
-function HomeInventoryManager:getZoneByName(name)
+function BaseInventoryManager:getZoneByName(name)
     self.zones = self.zones or {}
     for _, zone in ipairs(self.zones) do
         if zone.name == name then
@@ -273,7 +283,7 @@ function HomeInventoryManager:getZoneByName(name)
     return nil
 end
 
-function HomeInventoryManager:isPlayerInZone(playerObj, zone)
+function BaseInventoryManager:isPlayerInZone(playerObj, zone)
     local x = playerObj:getX()
     local y = playerObj:getY()
     local z = playerObj:getZ()
@@ -282,7 +292,7 @@ function HomeInventoryManager:isPlayerInZone(playerObj, zone)
         and z == (zone.z or 0)
 end
 
-function HomeInventoryManager:getZonePlayerIsIn(playerObj)
+function BaseInventoryManager:getZonePlayerIsIn(playerObj)
     for _, zone in ipairs(self:getAllZones()) do
         if self:isPlayerInZone(playerObj, zone) then
             return zone
@@ -291,18 +301,18 @@ function HomeInventoryManager:getZonePlayerIsIn(playerObj)
     return nil
 end
 
--- Load zones when world initializes
--- Events.OnInitWorld.Add(function()
---     HomeInventoryManager:load()
--- end)
+-- Load zones (and migrate from Home Inventory) once global mod data is ready.
+Events.OnInitGlobalModData.Add(function()
+    BaseInventoryManager:load()
+end)
 
 -- Save zones on game save
 Events.OnSave.Add(function()
-    HomeInventoryManager:save()
+    BaseInventoryManager:save()
 end)
 
 -- Refresh every ten minutes
 Events.EveryTenMinutes.Add(function()
-    print("Home Inventory: Refreshing after 10 min.")
-    HomeInventoryManager:refresh()
+    print("Base Inventory: Refreshing after 10 min.")
+    BaseInventoryManager:refresh()
 end)

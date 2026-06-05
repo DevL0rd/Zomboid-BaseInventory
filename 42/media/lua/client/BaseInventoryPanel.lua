@@ -1,8 +1,8 @@
 require "ISUI/ISPanel"
-require "HomeInventoryZonePanel"
+require "BaseInventoryZonePanel"
 
 -- To-do: derive from ISPanelJoypad instead to implement controller support
-HomeInventoryPanel      = ISPanel:derive("HomeInventoryPanel")
+BaseInventoryPanel      = ISPanel:derive("BaseInventoryPanel")
 
 local FONT_HGT_SMALL    = getTextManager():getFontHeight(UIFont.Small)
 local FONT_HGT_MEDIUM   = getTextManager():getFontHeight(UIFont.Medium)
@@ -47,12 +47,12 @@ local COL_ZONE_X        = COL_AMOUNT_X +
     getTextManager():MeasureStringX(UIFont.Small, " x000 ") -- hopefully the player won't have more than 1000 of any single item
 local COL_INSIDE_X      = COL_ZONE_X + (LIST_WIDTH - COL_ZONE_X) / 2
 
-function HomeInventoryPanel:initialise()
+function BaseInventoryPanel:initialise()
     ISPanel.initialise(self);
     self:create();
 end
 
-function HomeInventoryPanel:setVisible(visible)
+function BaseInventoryPanel:setVisible(visible)
     -- not sure what this does since populateList() never gets called
     if visible then
         self:populateList()
@@ -60,7 +60,7 @@ function HomeInventoryPanel:setVisible(visible)
     self.javaObject:setVisible(visible);
 end
 
-function HomeInventoryPanel:prerender()
+function BaseInventoryPanel:prerender()
     ISPanel.prerender(self)
 
     self:updateHoveredContainerHighlight()
@@ -69,16 +69,16 @@ function HomeInventoryPanel:prerender()
     self:setHeightAndParentHeight(FIXED_HEIGHT)
 
     -- Header for the list
-    self:drawText(getText("UI_HomeInventory_TableName"), COL_NAME_X, self.itemList.y - FONT_HGT_SMALL, 1, 1, 1, 1,
+    self:drawText(getText("UI_BaseInventory_TableName"), COL_NAME_X, self.itemList.y - FONT_HGT_SMALL, 1, 1, 1, 1,
         UIFont.Small)
     self:drawText("", COL_AMOUNT_X, self.itemList.y - FONT_HGT_SMALL, 1, 1, 1, 1, UIFont.Small)
-    self:drawText(getText("UI_HomeInventory_TableZone"), COL_ZONE_X, self.itemList.y - FONT_HGT_SMALL, 1, 1, 1, 1,
+    self:drawText(getText("UI_BaseInventory_TableZone"), COL_ZONE_X, self.itemList.y - FONT_HGT_SMALL, 1, 1, 1, 1,
         UIFont.Small)
-    self:drawText(getText("UI_HomeInventory_TableInside"), COL_INSIDE_X, self.itemList.y - FONT_HGT_SMALL, 1, 1, 1, 1,
+    self:drawText(getText("UI_BaseInventory_TableInside"), COL_INSIDE_X, self.itemList.y - FONT_HGT_SMALL, 1, 1, 1, 1,
         UIFont.Small)
 end
 
-function HomeInventoryPanel:updateHoveredContainerHighlight()
+function BaseInventoryPanel:updateHoveredContainerHighlight()
     local hovered = self.itemList.mouseoverselected
 
     if not hovered or hovered <= 0 or not self.itemList:isMouseOver() then
@@ -100,25 +100,25 @@ function HomeInventoryPanel:updateHoveredContainerHighlight()
     end
 end
 
-function HomeInventoryPanel:clearHighlightedContainer()
+function BaseInventoryPanel:clearHighlightedContainer()
     if self.highlightedContainerObject then
         self.highlightedContainerObject:setHighlighted(false, false)
         self.highlightedContainerObject = nil
     end
 end
 
-function HomeInventoryPanel:render()
+function BaseInventoryPanel:render()
     -- not sure why the vanilla non-resizable panels render the elements every frame,
     -- hopefully it works without doing that
     -- ISPanel.render(self)
 end
 
-function HomeInventoryPanel:create()
-    HomeInventoryManager:load()
+function BaseInventoryPanel:create()
+    BaseInventoryManager:load()
 
     self.items = {}
 
-    self.manageButton = ISButton:new(0, 0, BUTTON_WIDTH, BUTTON_HEIGHT, getText("UI_HomeInventory_ManageZonesButton"),
+    self.manageButton = ISButton:new(0, 0, BUTTON_WIDTH, BUTTON_HEIGHT, getText("UI_BaseInventory_ManageZonesButton"),
         self, self.onManageButtonClick)
     self.manageButton:initialise()
     self:addChild(self.manageButton)
@@ -137,7 +137,7 @@ function HomeInventoryPanel:create()
     local maxInsideWidth = LIST_WIDTH - COL_ZONE_X - COLUMN_PADDING
     self.itemList:initialise()
     self.itemList:instantiate()
-    self.itemList:setOnMouseDownFunction(self, HomeInventoryPanel.onItemMouseDown)
+    self.itemList:setOnMouseDownFunction(self, BaseInventoryPanel.onItemMouseDown)
     self.itemList.itemheight = FONT_HGT_SMALL
     self.itemList.font = UIFont.Small
 
@@ -208,7 +208,7 @@ function HITruncateText(text, font, maxWidth)
     return truncated .. ellipsis
 end
 
-function HomeInventoryPanel:filterItems()
+function BaseInventoryPanel:filterItems()
     local filter = self.searchBar:getText():lower()
     self.itemList:clear()
 
@@ -221,22 +221,22 @@ function HomeInventoryPanel:filterItems()
     end
 end
 
-function HomeInventoryPanel:populateList()
-    print("HomeInventory: populating item list.")
+function BaseInventoryPanel:populateList()
+    print("BaseInventory: populating item list.")
     self.itemList:clear()
-    self.items = HomeInventoryManager:getAllItemInfo()
+    self.items = BaseInventoryManager:getAllItemInfo()
     self:filterItems()
 end
 
-function HomeInventoryPanel:onManageButtonClick()
+function BaseInventoryPanel:onManageButtonClick()
     local playerObj = getPlayer()
     local playerNum = playerObj:getPlayerNum()
 
-    local ui = HomeInventoryZonePanel.instance
+    local ui = BaseInventoryZonePanel.instance
 
     if not ui then
         -- if it doesn't exist, create
-        ui = HomeInventoryZonePanel:new(
+        ui = BaseInventoryZonePanel:new(
             getPlayerScreenLeft(playerNum) + 100,
             getPlayerScreenTop(playerNum) + 100,
             500,
@@ -260,12 +260,12 @@ function HomeInventoryPanel:onManageButtonClick()
     self:populateList()
 end
 
-function HomeInventoryPanel:onItemMouseDown(item)
+function BaseInventoryPanel:onItemMouseDown(item)
     if not item then return end
 
     local row = self.itemList.selected
 
-    local zone = HomeInventoryManager:getZoneByName(item.zone)
+    local zone = BaseInventoryManager:getZoneByName(item.zone)
 
     if not zone then return end
 
@@ -303,7 +303,7 @@ function HomeInventoryPanel:onItemMouseDown(item)
     -- print("Clicked on row ", row, " which holds ", item)
 end
 
-function HomeInventoryPanel:new(x, y, width, height, playerNum)
+function BaseInventoryPanel:new(x, y, width, height, playerNum)
     local o = {};
 
     width   = width or getCore():getScreenWidth() / 4.8 -- fallback to prevent errors
