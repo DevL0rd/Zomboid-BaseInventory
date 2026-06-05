@@ -1,0 +1,9 @@
+name=Base Inventory
+id=BaseInventory
+author=DevL0rd
+modversion=1.0.0
+versionMin=42.17
+description=Fork of Home Inventory. Designate a zone for your base, view all its items, AND get a "Base Inventory" tab in the loot window that merges every container in the zone into one inventory you can take from and craft/cook with (with a force-select toggle). Use this INSTEAD of the original Home Inventory.
+poster=poster.png
+icon=icon.png
+incompatible=
