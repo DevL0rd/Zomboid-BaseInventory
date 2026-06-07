@@ -1,12 +1,12 @@
 --[[
-    Base Inventory - CleanUI compatibility
+    Safehouse Inventory - CleanUI compatibility
     --------------------------------------
     CleanUI adds the loot-window controls (search box, sort, etc.) but only shows them for
     a hardcoded whitelist of virtual container types ("proxInv", "proximityInv", "csrLootBag"...)
     via a CleanUI-LOCAL function we can't extend. For those whitelisted/virtual containers it
     renders the controls from ISLootWindowContainerControls_FloorHandlerList.
 
-    Our synthetic tabs ("baseInv" / "baseInvZone") aren't on that list, so CleanUI hides the
+    Our synthetic tabs ("safehouseInv" / "safehouseInvZone") aren't on that list, so CleanUI hides the
     controls. We wrap ISLootWindowContainerControls:arrange() and, when our container is the one
     displayed and CleanUI rendered nothing, replicate CleanUI's floor-handler render so the same
     search/sort controls appear.
@@ -15,14 +15,14 @@
     Deferred to OnGameStart so it wraps whatever final arrange() exists, regardless of mod order.
 ]]
 
-local function isBaseInvType(t)
-    return t == "baseInv" or t == "baseInvZone"
+local function isSafehouseInvType(t)
+    return t == "safehouseInv" or t == "safehouseInvZone"
 end
 
 Events.OnGameStart.Add(function()
     if not (ISLootWindowContainerControls and ISLootWindowContainerControls.arrange) then return end
-    if ISLootWindowContainerControls._baseInvArrangeWrapped then return end
-    ISLootWindowContainerControls._baseInvArrangeWrapped = true
+    if ISLootWindowContainerControls._safehouseInvArrangeWrapped then return end
+    ISLootWindowContainerControls._safehouseInvArrangeWrapped = true
 
     local _orig_arrange = ISLootWindowContainerControls.arrange
     function ISLootWindowContainerControls:arrange()
@@ -33,7 +33,7 @@ Events.OnGameStart.Add(function()
         if not self.getDisplayedContainer then return end
 
         local container = self:getDisplayedContainer()
-        if not container or not isBaseInvType(container:getType()) then return end
+        if not container or not isSafehouseInvType(container:getType()) then return end
         if self.controls and #self.controls > 0 then return end -- CleanUI already showed something
 
         local PAD = math.max(2, math.floor(getTextManager():getFontHeight(UIFont.Small) * 0.2))
@@ -63,5 +63,5 @@ Events.OnGameStart.Add(function()
         end
     end
 
-    print("[BaseInventory] CleanUI loot-controls compat active (search/sort on the Base Inventory tab).")
+    print("[SafehouseInventory] CleanUI loot-controls compat active (search/sort on the Safehouse Inventory tab).")
 end)

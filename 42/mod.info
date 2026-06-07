@@ -1,9 +1,9 @@
-name=Base Inventory
-id=BaseInventory
+name=Safehouse Inventory
+id=SafehouseInventory
 author=DevL0rd
 modversion=1.0.0
 versionMin=42.17
-description=Designate zones for your base and get a Base Inventory tab in the loot window for each zone - browse, take from, and craft/cook with every container in the zone while you're there. The tab stays selected as you move around (only switches when you click another container).
+description=Designate zones for your safehouse and get a Safehouse Inventory tab in the loot window for each zone - browse, take from, and craft/cook with every container in the zone while you're there. The tab stays selected as you move around (only switches when you click another container).
 poster=poster.png
 icon=icon.png
 incompatible=

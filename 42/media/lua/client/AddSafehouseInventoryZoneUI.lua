@@ -1,9 +1,9 @@
 -- This handles the zone drawing and the popups associated with it, but not the Zone Manager window.
 
-require "BaseInventoryManager"
-require "BaseInventoryInfoPanelUI"
+require "SafehouseInventoryManager"
+require "SafehouseInventoryInfoPanelUI"
 
-AddBaseInventoryZoneUI = ISPanelJoypad:derive("AddBaseInventoryZoneUI");
+AddSafehouseInventoryZoneUI = ISPanelJoypad:derive("AddSafehouseInventoryZoneUI");
 
 local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.NewSmall)
 local FONT_HGT_MEDIUM = getTextManager():getFontHeight(UIFont.NewMedium)
@@ -17,19 +17,19 @@ local HIZONECOLORB = 0.15
 local HIZONECOLORA = 0.3
 
 --************************************************************************--
---** AddBaseInventoryZoneUI:initialise
+--** AddSafehouseInventoryZoneUI:initialise
 --**
 --************************************************************************--
 
-function AddBaseInventoryZoneUI:initialise()
-    self.parentUI = BaseInventoryZonePanel.instance
+function AddSafehouseInventoryZoneUI:initialise()
+    self.parentUI = SafehouseInventoryZonePanel.instance
 
     ISPanelJoypad.initialise(self);
     local btnWid = 150
 
     self.parentUI:setVisible(false);
 
-    self.buttonAdd = ISButton:new(UI_BORDER_SPACING, self:getHeight() - UI_BORDER_SPACING - BUTTON_HGT, btnWid, BUTTON_HGT, getText("IGUI_DesignationZone_SetPosition"), self, AddBaseInventoryZoneUI.onClick);
+    self.buttonAdd = ISButton:new(UI_BORDER_SPACING, self:getHeight() - UI_BORDER_SPACING - BUTTON_HGT, btnWid, BUTTON_HGT, getText("IGUI_DesignationZone_SetPosition"), self, AddSafehouseInventoryZoneUI.onClick);
     self.buttonAdd.internal = "ADD"
     self.buttonAdd.anchorTop = false
     self.buttonAdd.anchorBottom = true
@@ -37,7 +37,7 @@ function AddBaseInventoryZoneUI:initialise()
     self:addChild(self.buttonAdd)
     self.buttonAdd:setVisible(false)
 
-    self.cancel = ISButton:new(self:getWidth() - btnWid - UI_BORDER_SPACING, self:getHeight() - UI_BORDER_SPACING - BUTTON_HGT, btnWid, BUTTON_HGT, getText("UI_Cancel"), self, AddBaseInventoryZoneUI.onClick);
+    self.cancel = ISButton:new(self:getWidth() - btnWid - UI_BORDER_SPACING, self:getHeight() - UI_BORDER_SPACING - BUTTON_HGT, btnWid, BUTTON_HGT, getText("UI_Cancel"), self, AddSafehouseInventoryZoneUI.onClick);
     self.cancel.internal = "CANCEL";
     self.cancel.anchorTop = false
     self.cancel.anchorBottom = true
@@ -46,13 +46,13 @@ function AddBaseInventoryZoneUI:initialise()
     self.cancel:instantiate();
     self:addChild(self.cancel);
 
-    local zoneid = #BaseInventoryManager:getAllZones() + 1;
-    local title =  getText("UI_BaseInventory_Zone") .. " " .. zoneid;
+    local zoneid = #SafehouseInventoryManager:getAllZones() + 1;
+    local title =  getText("UI_SafehouseInventory_Zone") .. " " .. zoneid;
     local found = false;
     while not found do
-        if BaseInventoryManager:getZoneByName(title) then
+        if SafehouseInventoryManager:getZoneByName(title) then
             zoneid = zoneid + 1;
-            title = getText("UI_BaseInventory_Zone") .. " " .. zoneid;
+            title = getText("UI_SafehouseInventory_Zone") .. " " .. zoneid;
         else
             break;
         end
@@ -63,9 +63,18 @@ function AddBaseInventoryZoneUI:initialise()
     self.titleEntry:instantiate();
     self:addChild(self.titleEntry);
 
+    -- "Include all floors" toggle: when on, the zone covers every floor (basement to roof) within
+    -- its x/y footprint; when off it's limited to the floor you're standing on. Default on.
+    self.allFloorsTick = ISTickBox:new(UI_BORDER_SPACING, 0, self.width - UI_BORDER_SPACING * 2, FONT_HGT_SMALL + 4, "", self, nil);
+    self.allFloorsTick:initialise();
+    self.allFloorsTick:instantiate();
+    self.allFloorsTick:addOption(getText("UI_SafehouseInventory_AllFloors"));
+    self.allFloorsTick:setSelected(1, true);
+    self:addChild(self.allFloorsTick);
+
 end
 
-function AddBaseInventoryZoneUI:onMouseDownOutside(x, y)
+function AddSafehouseInventoryZoneUI:onMouseDownOutside(x, y)
     if self.playerNum ~= 0 then return end
     if not self.drawTileMouse or self.startingX then return; end
     local sq = self:pickSquare(x + self:getAbsoluteX(), y + self:getAbsoluteY())
@@ -80,7 +89,7 @@ function AddBaseInventoryZoneUI:onMouseDownOutside(x, y)
     end
 end
 
-function AddBaseInventoryZoneUI:onMouseMoveOutside(dx, dy)
+function AddSafehouseInventoryZoneUI:onMouseMoveOutside(dx, dy)
     if self.playerNum ~= 0 then return end
     local sq = self:pickSquare(getMouseX(), getMouseY())
     if sq and self.drawTileMouse then
@@ -89,12 +98,12 @@ function AddBaseInventoryZoneUI:onMouseMoveOutside(dx, dy)
     end
 end
 
-function AddBaseInventoryZoneUI:onMouseUpOutside(x, y)
+function AddSafehouseInventoryZoneUI:onMouseUpOutside(x, y)
     if self.playerNum ~= 0 then return end
     self:askCreateZone()
 end
 
-function AddBaseInventoryZoneUI:askCreateZone()
+function AddSafehouseInventoryZoneUI:askCreateZone()
     if not self.drawTileMouse or not self.startingX or not self.startingY or not self.widthCorrect or not self.heightCorrect then
         self:undisplay();
         return;
@@ -102,8 +111,8 @@ function AddBaseInventoryZoneUI:askCreateZone()
     self.drawTileMouse = false;
     --self.cancel.enable = false;
     self.waitingConfirm = true;
-    -- local modal = ISModalDialog:new(0,0, 350, 150, getText("IGUI_DesignationZone_AddZone"), true, self, AddBaseInventoryZoneUI.onCreateZone);
-    local modal = ISModalDialog:new(0,0, 350, 150, getText("UI_BaseInventory_ZoneAddTitle"), true, self, AddBaseInventoryZoneUI.onCreateZone);
+    -- local modal = ISModalDialog:new(0,0, 350, 150, getText("IGUI_DesignationZone_AddZone"), true, self, AddSafehouseInventoryZoneUI.onCreateZone);
+    local modal = ISModalDialog:new(0,0, 350, 150, getText("UI_SafehouseInventory_ZoneAddTitle"), true, self, AddSafehouseInventoryZoneUI.onCreateZone);
     modal:initialise()
     modal:addToUIManager()
     modal.modal = self;
@@ -116,7 +125,7 @@ function AddBaseInventoryZoneUI:askCreateZone()
 --    self:addZone();
 end
 
-function AddBaseInventoryZoneUI:onCreateZone(button)
+function AddSafehouseInventoryZoneUI:onCreateZone(button)
     if button.internal == "YES" then
         self:addZone();
     else
@@ -125,10 +134,10 @@ function AddBaseInventoryZoneUI:onCreateZone(button)
     button.parent.modal.cancel.enable = true;
     button.parent.modal.waitingConfirm = false;
 
-    BaseInventoryManager:refresh()
+    SafehouseInventoryManager:refresh()
 end
 
-function AddBaseInventoryZoneUI:addZone()
+function AddSafehouseInventoryZoneUI:addZone()
     ISWorldObjectContextMenu.disableWorldMenu = false;
 
     if not self.widthCorrect or not self.heightCorrect then
@@ -144,7 +153,7 @@ function AddBaseInventoryZoneUI:addZone()
         return;
     end
 
-    if BaseInventoryManager:getZoneByName(self.titleEntry.name) then
+    if SafehouseInventoryManager:getZoneByName(self.titleEntry.name) then
         local modal = ISModalDialog:new(0,0, 350, 150, getText("IGUI_PvpZone_ZoneAlreadyExistTitle"), false, self, self.onZoneWithNameExists);
         modal:initialise()
         modal:addToUIManager()
@@ -154,6 +163,28 @@ function AddBaseInventoryZoneUI:addZone()
             modal.prevFocus = self
             setJoypadFocus(self.playerNum, modal)
         end
+        self.drawTileMouse = true;
+        return;
+    end
+
+    -- Require the drawn area to sit inside a safehouse the player owns or is a member of, and tag
+    -- the zone with that safehouse so it is shared only with its members.
+    local zz = luautils.round(self.player:getZ(), 0)
+    local dminX, dmaxX = math.min(self.startingX, self.endX), math.max(self.startingX, self.endX)
+    local dminY, dmaxY = math.min(self.startingY, self.endY), math.max(self.startingY, self.endY)
+    local cx, cy = math.floor((dminX + dmaxX) / 2), math.floor((dminY + dmaxY) / 2)
+    local centerSq = getCell():getGridSquare(cx, cy, zz)
+    local houseSH = centerSq and SafehouseInventoryManager.safehouseAt(centerSq, self.player)
+    local contained = false
+    if houseSH then
+        local sx, sy, sw, shh = houseSH:getX(), houseSH:getY(), houseSH:getW(), houseSH:getH()
+        contained = dminX >= sx and dmaxX <= sx + sw - 1 and dminY >= sy and dmaxY <= sy + shh - 1
+    end
+    if not houseSH or not contained then
+        local w, h = 360, 150
+        local modal = ISModalDialog:new(getCore():getScreenWidth()/2 - w/2, getCore():getScreenHeight()/2 - h/2, w, h, getText("UI_SafehouseInventory_NotInSafehouse"), false, nil, nil)
+        modal:initialise(); modal:addToUIManager(); modal.moveWithMouse = true
+        self:reset();
         self.drawTileMouse = true;
         return;
     end
@@ -175,16 +206,18 @@ function AddBaseInventoryZoneUI:addZone()
 
     -- Create zone data
     local zoneData = {
-        name = self.titleEntry.name or tostring(self.titleEntry:getName() or "HomeZone"),
-        x1 = startX, y1 = startY, x2 = endX, y2 = endY, z = luautils.round(self.player:getZ(),0)
+        name = self.titleEntry.name or tostring(self.titleEntry:getName() or "SafehouseZone"),
+        x1 = startX, y1 = startY, x2 = endX, y2 = endY, z = zz,
+        allFloors = self.allFloorsTick:isSelected(1) and true or false,
+        safehouseId = SafehouseInventoryManager.safehouseId(houseSH)
     }
 
-    BaseInventoryManager:addZone(zoneData)
+    SafehouseInventoryManager:addZone(zoneData)
 
     self:reset();
 end
 
-function AddBaseInventoryZoneUI:reset()
+function AddSafehouseInventoryZoneUI:reset()
     if not self.startingX or not self.startingY then return; end
     local startingX = self.startingX;
     local startingY = self.startingY;
@@ -225,11 +258,11 @@ function AddBaseInventoryZoneUI:reset()
     ISWorldObjectContextMenu.disableWorldMenu = false;
 end
 
-function AddBaseInventoryZoneUI:prerender()
+function AddSafehouseInventoryZoneUI:prerender()
     local z = UI_BORDER_SPACING+1;
 
     -- Show in world all saved zones
-    for _, zone in ipairs(self.parentUI.zones or BaseInventoryManager:getAllZones()) do -- getAllZones() just to be safe
+    for _, zone in ipairs(self.parentUI.zones or SafehouseInventoryManager:getAllZones()) do -- getAllZones() just to be safe
         addAreaHighlightForPlayer(
             self.playerNum,
             zone.x1, zone.y1,
@@ -239,8 +272,8 @@ function AddBaseInventoryZoneUI:prerender()
         )
     end
 
-    local zoneNameLabelText = getText("UI_BaseInventory_ZoneName")
-    local addZonePopupTitle = getText("UI_BaseInventory_ZoneAddTitle")
+    local zoneNameLabelText = getText("UI_SafehouseInventory_ZoneName")
+    local addZonePopupTitle = getText("UI_SafehouseInventory_ZoneAddTitle")
 
     local splitPoint = getTextManager():MeasureStringX(UIFont.NewSmall, zoneNameLabelText) + UI_BORDER_SPACING*2;
     local x = UI_BORDER_SPACING+1;
@@ -256,9 +289,13 @@ function AddBaseInventoryZoneUI:prerender()
 
     self.titleEntry:setY(z);
     self.titleEntry:setX(splitPoint);
-    z = z + FONT_HGT_SMALL;
+    z = z + FONT_HGT_SMALL + UI_BORDER_SPACING;
 
-    local howTo = getText("UI_BaseInventory_ZoneAddHowTo")
+    self.allFloorsTick:setX(x);
+    self.allFloorsTick:setY(z);
+    z = z + FONT_HGT_SMALL + UI_BORDER_SPACING;
+
+    local howTo = getText("UI_SafehouseInventory_ZoneAddHowTo")
  
     self:drawText(howTo, x, z + 2,1,1,1,1,UIFont.Small);
     self:setWidth(math.max(self.width, UI_BORDER_SPACING*2 + 2 + getTextManager():MeasureStringX(UIFont.Small, howTo)))
@@ -320,7 +357,7 @@ function AddBaseInventoryZoneUI:prerender()
     self:updateButtons();
 end
 
-function AddBaseInventoryZoneUI:updateButtons()
+function AddSafehouseInventoryZoneUI:updateButtons()
 --    self.ok.enable = self.size > 1;
     if getJoypadData(self.playerNum) then
         self.buttonAdd:setVisible(true)
@@ -340,7 +377,7 @@ function AddBaseInventoryZoneUI:updateButtons()
     end
 end
 
-function AddBaseInventoryZoneUI:pickSquare(screenX, screenY)
+function AddSafehouseInventoryZoneUI:pickSquare(screenX, screenY)
     local playerIndex = self.playerNum
     local z = self.player:getCurrentSquare():getZ()
     local worldX = screenToIsoX(playerIndex, screenX, screenY, z)
@@ -348,7 +385,7 @@ function AddBaseInventoryZoneUI:pickSquare(screenX, screenY)
     return getCell():getGridSquare(worldX, worldY, z), worldX, worldY, z
 end
 
-function AddBaseInventoryZoneUI:highlightSquareAtMousePointer()
+function AddSafehouseInventoryZoneUI:highlightSquareAtMousePointer()
     if self.drawingZone then return end
     if (self.playerNum ~= 0) or ((getJoypadData(self.playerNum) ~= nil) and not wasMouseActiveMoreRecentlyThanJoypad()) then return end
     local square,x,y,z = self:pickSquare(getMouseX(), getMouseY())
@@ -358,7 +395,7 @@ function AddBaseInventoryZoneUI:highlightSquareAtMousePointer()
     return
 end
 
-function AddBaseInventoryZoneUI:highlightSquareAtStartPosition()
+function AddSafehouseInventoryZoneUI:highlightSquareAtStartPosition()
     if self.drawingZone then return end
     if (self.playerNum == 0) and ((getJoypadData(self.playerNum) == nil) or wasMouseActiveMoreRecentlyThanJoypad()) then return end
     local x,y,z = self.joypadWorldX,self.joypadWorldY,self.player:getZ()
@@ -368,7 +405,7 @@ function AddBaseInventoryZoneUI:highlightSquareAtStartPosition()
     return
 end
 
-function AddBaseInventoryZoneUI:undisplay()
+function AddSafehouseInventoryZoneUI:undisplay()
     self:reset()
     self:setVisible(false)
     self:removeFromUIManager()
@@ -378,7 +415,7 @@ function AddBaseInventoryZoneUI:undisplay()
     end
 end
 
-function AddBaseInventoryZoneUI:onClick(button)
+function AddSafehouseInventoryZoneUI:onClick(button)
     if button.internal == "ADD" then
         if self.startingX == nil then
             self.startingX = self.joypadWorldX
@@ -396,11 +433,11 @@ function AddBaseInventoryZoneUI:onClick(button)
     end
 end
 
-function AddBaseInventoryZoneUI:onZoneWithNameExists()
+function AddSafehouseInventoryZoneUI:onZoneWithNameExists()
     self:undisplay()
 end
 
-function AddBaseInventoryZoneUI:onGainJoypadFocus(joypadData)
+function AddSafehouseInventoryZoneUI:onGainJoypadFocus(joypadData)
     ISPanelJoypad.onGainJoypadFocus(self, joypadData)
     self:setISButtonForA(self.buttonAdd)
     self:setISButtonForB(self.cancel)
@@ -408,11 +445,11 @@ function AddBaseInventoryZoneUI:onGainJoypadFocus(joypadData)
     self.joypadWorldY = self.player:getCurrentSquare():getY()
 end
 
-function AddBaseInventoryZoneUI:onJoypadDown(button, joypadData)
+function AddSafehouseInventoryZoneUI:onJoypadDown(button, joypadData)
     ISPanelJoypad.onJoypadDown(self, button, joypadData)
 end
 
-function AddBaseInventoryZoneUI:onJoypadDirUp(joypadData)
+function AddSafehouseInventoryZoneUI:onJoypadDirUp(joypadData)
     if self.startingX == nil then
         self.joypadWorldY = self.joypadWorldY - 1
     else
@@ -420,7 +457,7 @@ function AddBaseInventoryZoneUI:onJoypadDirUp(joypadData)
     end
 end
 
-function AddBaseInventoryZoneUI:onJoypadDirDown(joypadData)
+function AddSafehouseInventoryZoneUI:onJoypadDirDown(joypadData)
     if self.startingX == nil then
         self.joypadWorldY = self.joypadWorldY + 1
     else
@@ -428,7 +465,7 @@ function AddBaseInventoryZoneUI:onJoypadDirDown(joypadData)
     end
 end
 
-function AddBaseInventoryZoneUI:onJoypadDirLeft(joypadData)
+function AddSafehouseInventoryZoneUI:onJoypadDirLeft(joypadData)
     if self.startingX == nil then
         self.joypadWorldX = self.joypadWorldX - 1
     else
@@ -436,7 +473,7 @@ function AddBaseInventoryZoneUI:onJoypadDirLeft(joypadData)
     end
 end
 
-function AddBaseInventoryZoneUI:onJoypadDirRight(joypadData)
+function AddSafehouseInventoryZoneUI:onJoypadDirRight(joypadData)
     if self.startingX == nil then
         self.joypadWorldX = self.joypadWorldX + 1
     else
@@ -445,11 +482,12 @@ function AddBaseInventoryZoneUI:onJoypadDirRight(joypadData)
 end
 
 --************************************************************************--
---** AddBaseInventoryZoneUI:new
+--** AddSafehouseInventoryZoneUI:new
 --**
 --************************************************************************--
-function AddBaseInventoryZoneUI:new(x, y, width, height, player)
-    height = 1 + UI_BORDER_SPACING + FONT_HGT_MEDIUM + UI_BORDER_SPACING + FONT_HGT_SMALL * 2 + UI_BORDER_SPACING + FONT_HGT_SMALL * 3 + UI_BORDER_SPACING + BUTTON_HGT + UI_BORDER_SPACING+1
+function AddSafehouseInventoryZoneUI:new(x, y, width, height, player)
+    -- extra "+ FONT_HGT_SMALL + UI_BORDER_SPACING * 2" reserves the "Include all floors" tickbox row
+    height = 1 + UI_BORDER_SPACING + FONT_HGT_MEDIUM + UI_BORDER_SPACING + FONT_HGT_SMALL * 2 + UI_BORDER_SPACING + FONT_HGT_SMALL * 3 + UI_BORDER_SPACING + BUTTON_HGT + UI_BORDER_SPACING+1 + FONT_HGT_SMALL + UI_BORDER_SPACING * 2
     local o = ISPanelJoypad.new(self, x, y, width, height);
     if y == 0 then
         o.y = o:getMouseY() - (height / 2)
@@ -473,7 +511,7 @@ function AddBaseInventoryZoneUI:new(x, y, width, height, player)
     o.drawTileMouse = true;
 --    o.moveWithMouse = true;
     o.startRenderTile = false;
-    AddBaseInventoryZoneUI.instance = o;
+    AddSafehouseInventoryZoneUI.instance = o;
     o.buttonBorderColor = {r=0.7, g=0.7, b=0.7, a=0.5};
     return o;
 end

@@ -1,24 +1,24 @@
 -- This is the panel that appears when "Manage Zones" is clicked
 
-require "BaseInventoryManager"
--- require "AddBaseInventoryZoneUI"
-require "BaseInventoryInfoPanelUI"
+require "SafehouseInventoryManager"
+-- require "AddSafehouseInventoryZoneUI"
+require "SafehouseInventoryInfoPanelUI"
 
-BaseInventoryZonePanel = ISCollapsableWindowJoypad:derive("BaseInventoryZonePanel");
+SafehouseInventoryZonePanel = ISCollapsableWindowJoypad:derive("SafehouseInventoryZonePanel");
 
 local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.NewSmall)
 local FONT_HGT_MEDIUM = getTextManager():getFontHeight(UIFont.NewMedium)
 local UI_BORDER_SPACING = 10
 local BUTTON_HGT = FONT_HGT_SMALL + 6
 
-function BaseInventoryZonePanel:initialise()
+function SafehouseInventoryZonePanel:initialise()
     local btnWid = 150
 
-    self.descriptionText = getText("UI_BaseInventory_ZoneManagerDesc")
+    self.descriptionText = getText("UI_SafehouseInventory_ZoneManagerDesc")
 
     local descriptionWidth = getTextManager():MeasureStringX(UIFont.Small, self.descriptionText)
 
-    self.zoneUpdateText = getTextManager():WrapText(UIFont.Small, getText("UI_BaseInventory_ZoneUpdateHint"),
+    self.zoneUpdateText = getTextManager():WrapText(UIFont.Small, getText("UI_SafehouseInventory_ZoneUpdateHint"),
         self:getWidth() / 2)
     local zoneUpdateWidth = getTextManager():MeasureStringX(UIFont.Small, self.zoneUpdateText)
 
@@ -41,7 +41,7 @@ function BaseInventoryZonePanel:initialise()
     self:addChild(self.zoneList)
 
     self.addZone = ISButton:new(self.zoneList.x, self.zoneList.y + self.zoneList.height + UI_BORDER_SPACING, btnWid,
-        BUTTON_HGT, getText("UI_BaseInventory_ZoneAddButton"), self, BaseInventoryZonePanel.onClick)
+        BUTTON_HGT, getText("UI_SafehouseInventory_ZoneAddButton"), self, SafehouseInventoryZonePanel.onClick)
     self.addZone.internal = "ADDZONE"
     self.addZone:initialise()
     self.addZone:instantiate()
@@ -49,7 +49,7 @@ function BaseInventoryZonePanel:initialise()
     self:addChild(self.addZone)
 
     self.removeZone = ISButton:new(self.width - 1 - btnWid - UI_BORDER_SPACING, self.addZone.y, btnWid, BUTTON_HGT,
-        getText("UI_BaseInventory_ZoneRemoveButton"), self, BaseInventoryZonePanel.onClick)
+        getText("UI_SafehouseInventory_ZoneRemoveButton"), self, SafehouseInventoryZonePanel.onClick)
     self.removeZone.internal = "REMOVEZONE"
     self.removeZone:initialise()
     self.removeZone:instantiate()
@@ -58,7 +58,7 @@ function BaseInventoryZonePanel:initialise()
     self.removeZone.enable = false
 
     self.renameZone = ISButton:new(self.removeZone.x - btnWid - UI_BORDER_SPACING, self.addZone.y, btnWid, BUTTON_HGT,
-        getText("UI_BaseInventory_ZoneRenameButton"), self, BaseInventoryZonePanel.onClick)
+        getText("UI_SafehouseInventory_ZoneRenameButton"), self, SafehouseInventoryZonePanel.onClick)
     self.renameZone.internal = "RENAMEZONE"
     self.renameZone:initialise()
     self.renameZone:instantiate()
@@ -66,8 +66,18 @@ function BaseInventoryZonePanel:initialise()
     self:addChild(self.renameZone)
     self.renameZone.enable = false
 
-    self.closeButton = ISButton:new(self.removeZone.x, self.addZone:getBottom() + BUTTON_HGT * 2, btnWid, BUTTON_HGT,
-        getText("UI_BaseInventory_CloseButton"), self, BaseInventoryZonePanel.onClick)
+    -- Per-zone "all floors" toggle for the selected zone (mirrors the create-zone tickbox).
+    self.toggleFloors = ISButton:new(self.zoneList.x, self.addZone:getBottom() + UI_BORDER_SPACING, btnWid + 60, BUTTON_HGT,
+        getText("UI_SafehouseInventory_ToggleFloorsAll"), self, SafehouseInventoryZonePanel.onClick)
+    self.toggleFloors.internal = "TOGGLEFLOORS"
+    self.toggleFloors:initialise()
+    self.toggleFloors:instantiate()
+    self.toggleFloors.borderColor = self.buttonBorderColor
+    self:addChild(self.toggleFloors)
+    self.toggleFloors.enable = false
+
+    self.closeButton = ISButton:new(self.removeZone.x, self.toggleFloors:getBottom() + BUTTON_HGT, btnWid, BUTTON_HGT,
+        getText("UI_SafehouseInventory_CloseButton"), self, SafehouseInventoryZonePanel.onClick)
     self.closeButton.internal = "OK"
     self.closeButton:initialise()
     self.closeButton:instantiate()
@@ -93,7 +103,7 @@ function BaseInventoryZonePanel:initialise()
     end
 end
 
-function BaseInventoryZonePanel:close()
+function SafehouseInventoryZonePanel:close()
     -- Hide designation zones when this window is closed
     if self.player then
         self.player:setSeeDesignationZone(false)
@@ -102,33 +112,33 @@ function BaseInventoryZonePanel:close()
     self:removeFromUIManager()
 end
 
-function BaseInventoryZonePanel:populateList()
-    BaseInventoryManager:load()
+function SafehouseInventoryZonePanel:populateList()
+    SafehouseInventoryManager:load()
 
     self.zoneList:clear()
 
-    self.zones = BaseInventoryManager:getAllZones()
+    self.zones = self.player and SafehouseInventoryManager:getAccessibleZones(self.player) or SafehouseInventoryManager:getAllZones()
 
     for i, zone in ipairs(self.zones or {}) do
         local newZone = {}
         newZone.title = zone.name
         newZone.size = math.abs(zone.x2 - zone.x1 + 1) * math.abs(zone.y2 - zone.y1 + 1)
         newZone.zone = zone
-        newZone.loaded = BaseInventoryManager:isZoneLoaded(zone) -- Add loaded status
+        newZone.loaded = SafehouseInventoryManager:isZoneLoaded(zone) -- Add loaded status
         self.zoneList:addItem(newZone.title, newZone)
     end
 
     -- since I can't figure out how to set the panel as a parent
-    if not BaseInventoryPanel.instance then
+    if not SafehouseInventoryPanel.instance then
         return
     else
-        BaseInventoryPanel.instance:populateList()
+        SafehouseInventoryPanel.instance:populateList()
     end
 
     print(self.zoneList)
 end
 
-function BaseInventoryZonePanel:drawList(y, item, alt)
+function SafehouseInventoryZonePanel:drawList(y, item, alt)
     -- This could be a ISScrollingListBox instead
     local a = 0.9
     if not self.currentWidth then self.currentWidth = 0 end
@@ -145,28 +155,33 @@ function BaseInventoryZonePanel:drawList(y, item, alt)
         self.currentWidth = newWidth
     end
 
-    local sizeString = getText("UI_BaseInventory_ZoneSize", item.item.size)
+    local sizeString = getText("UI_SafehouseInventory_ZoneSize", item.item.size)
     self:drawText(sizeString, self.currentWidth + 180, y + 2, 1, 1, 1, a, self.font)
 
     -- Draw Loaded column
-    local updatedText = getText("UI_BaseInventory_ZoneManagerUpdated")
-    local notUpdatedText = getText("UI_BaseInventory_ZoneManagerNotUpdated")
+    local updatedText = getText("UI_SafehouseInventory_ZoneManagerUpdated")
+    local notUpdatedText = getText("UI_SafehouseInventory_ZoneManagerNotUpdated")
 
     local loadedText = item.item.loaded and updatedText or notUpdatedText
-    self:drawText(loadedText, self.currentWidth + 300, y + 2, 1, 1, 1, a, self.font)
+
+    local zone = item.item.zone
+    local floorText = SafehouseInventoryManager.zoneAllFloors(zone)
+        and getText("UI_SafehouseInventory_FloorAll")
+        or getText("UI_SafehouseInventory_FloorSingle", math.floor(zone.z or 0))
+    self:drawText(loadedText .. "  [" .. floorText .. "]", self.currentWidth + 300, y + 2, 1, 1, 1, a, self.font)
 
     return y + self.itemheight
 end
 
-function BaseInventoryZonePanel:prerender()
+function SafehouseInventoryZonePanel:prerender()
     ISCollapsableWindowJoypad.prerender(self)
-    -- self:drawText("Base Inventory Zones", self.width/2 - (getTextManager():MeasureStringX(UIFont.NewMedium, "Base Inventory Zones") / 2), z, 1,1,1,1, UIFont.NewMedium)
+    -- self:drawText("Safehouse Inventory Zones", self.width/2 - (getTextManager():MeasureStringX(UIFont.NewMedium, "Safehouse Inventory Zones") / 2), z, 1,1,1,1, UIFont.NewMedium)
     self:drawZoneAreaOnGround()
 end
 
-function BaseInventoryZonePanel:drawZoneAreaOnGround()
+function SafehouseInventoryZonePanel:drawZoneAreaOnGround()
     -- now highlight every saved zone
-    for _, zone in ipairs(self.zones or BaseInventoryManager:getAllZones()) do
+    for _, zone in ipairs(self.zones or SafehouseInventoryManager:getAllZones()) do
         if math.floor(zone.z) == math.floor(self.player:getZ()) then
             addAreaHighlightForPlayer(
                 self.playerNum,
@@ -179,7 +194,7 @@ function BaseInventoryZonePanel:drawZoneAreaOnGround()
     end
 end
 
-function BaseInventoryZonePanel:drawZoneNameOnGround()
+function SafehouseInventoryZonePanel:drawZoneNameOnGround()
     if not self:getIsVisible() then return end
 
     local tm   = getTextManager()
@@ -187,7 +202,7 @@ function BaseInventoryZonePanel:drawZoneNameOnGround()
     local camX = IsoCamera.getOffX()
     local camY = IsoCamera.getOffY()
 
-    for _, zone in ipairs(BaseInventoryManager:getAllZones() or {}) do
+    for _, zone in ipairs(SafehouseInventoryManager:getAllZones() or {}) do
         if math.floor(zone.z) == math.floor(self.player:getZ()) then
             local cx    = (zone.x1 + zone.x2) / 2
             local cy    = (zone.y1 + zone.y2) / 2
@@ -207,10 +222,10 @@ function BaseInventoryZonePanel:drawZoneNameOnGround()
     end
 end
 
-function BaseInventoryZonePanel:updateButtons()
+function SafehouseInventoryZonePanel:updateButtons()
 end
 
-function BaseInventoryZonePanel:render()
+function SafehouseInventoryZonePanel:render()
     ISCollapsableWindowJoypad.render(self)
 
     self:drawZoneNameOnGround()
@@ -219,24 +234,30 @@ function BaseInventoryZonePanel:render()
 
     self.removeZone.enable = false
     self.renameZone.enable = false
+    self.toggleFloors.enable = false
     if self.zoneList.selected > 0 then
         self.removeZone.enable = true
         self.renameZone.enable = true
+        self.toggleFloors.enable = true
         self.selectedZone = self.zoneList.items[self.zoneList.selected].item.zone
+        self.toggleFloors:setTitle(SafehouseInventoryManager.zoneAllFloors(self.selectedZone)
+            and getText("UI_SafehouseInventory_ToggleFloorsAll")
+            or getText("UI_SafehouseInventory_ToggleFloorsSingle"))
     else
         self.selectedZone = nil
+        self.toggleFloors:setTitle(getText("UI_SafehouseInventory_ToggleFloorsAll"))
     end
 
 end
 
-function BaseInventoryZonePanel:onClick(button)
+function SafehouseInventoryZonePanel:onClick(button)
     if button.internal == "OK" then
         self:close()
     end
     if button.internal == "REMOVEZONE" then
         if self.selectedZone then
-            local removeText = getText("UI_BaseInventory_ZoneRemove", self.selectedZone.name)
-            local modal = ISModalDialog:new(0, 0, 350, 150, removeText, true, nil, BaseInventoryZonePanel.onRemoveZone)
+            local removeText = getText("UI_SafehouseInventory_ZoneRemove", self.selectedZone.name)
+            local modal = ISModalDialog:new(0, 0, 350, 150, removeText, true, nil, SafehouseInventoryZonePanel.onRemoveZone)
             modal:initialise()
             modal:addToUIManager()
             modal.ui = self
@@ -246,16 +267,27 @@ function BaseInventoryZonePanel:onClick(button)
     end
     if button.internal == "RENAMEZONE" then
         if self.selectedZone then
-            local renameText = getText("UI_BaseInventory_ZoneRename", self.selectedZone.name)
+            local renameText = getText("UI_SafehouseInventory_ZoneRename", self.selectedZone.name)
             local modal = ISTextBox:new(0, 0, 280, 180, renameText, self.selectedZone.name, self,
-                BaseInventoryZonePanel.onRenameZoneClick)
+                SafehouseInventoryZonePanel.onRenameZoneClick)
             modal:initialise()
             modal:addToUIManager()
             modal.maxChars = 30
         end
     end
+    if button.internal == "TOGGLEFLOORS" then
+        if self.selectedZone then
+            local zone = self.selectedZone
+            zone.allFloors = not SafehouseInventoryManager.zoneAllFloors(zone)
+            SafehouseInventoryManager:save()
+            -- floor mode changed -> force the have-at-base index to re-scan this zone
+            if SafehouseInventoryIndex then SafehouseInventoryIndex.invalidateZone(zone) end
+            self:populateList()
+            SafehouseInventoryManager:refresh()
+        end
+    end
     if button.internal == "ADDZONE" then
-        local ui = AddBaseInventoryZoneUI:new(getPlayerScreenLeft(self.playerNum) + 10,
+        local ui = AddSafehouseInventoryZoneUI:new(getPlayerScreenLeft(self.playerNum) + 10,
             getPlayerScreenTop(self.playerNum) + 10, 320, FONT_HGT_MEDIUM * 8, self.player)
         ui:initialise()
         ui:addToUIManager()
@@ -264,28 +296,28 @@ function BaseInventoryZonePanel:onClick(button)
     end
 end
 
-function BaseInventoryZonePanel:onRenameZoneClick(button, panel)
+function SafehouseInventoryZonePanel:onRenameZoneClick(button, panel)
     if button.internal == "OK" then
         if button.parent.entry:getText() and button.parent.entry:getText() ~= "" then
             if self.selectedZone then
-                self.selectedZone.name = button.parent.entry:getText()
+                SafehouseInventoryManager:renameZone(self.selectedZone, button.parent.entry:getText())
                 self:populateList()
             end
         end
     end
 end
 
-function BaseInventoryZonePanel:onRemoveZone(button)
+function SafehouseInventoryZonePanel:onRemoveZone(button)
     local zone = button.parent.selectedZone
 
     if button.internal == "YES" then
-        BaseInventoryManager:removeZone(zone)
+        SafehouseInventoryManager:removeZone(zone)
         button.parent.ui:populateList()
-        BaseInventoryManager:refresh()
+        SafehouseInventoryManager:refresh()
     end
 end
 
-BaseInventoryZonePanel.toggleZoneUI = function(playerNum)
+SafehouseInventoryZonePanel.toggleZoneUI = function(playerNum)
     -- This getPlayerZoneUI returns the Animal UI and not the home inventory UI so don't use this function.
     -- I'm not deleting this in case for some reason it is needed internally
     local ui = getPlayerZoneUI(playerNum)
@@ -302,7 +334,7 @@ BaseInventoryZonePanel.toggleZoneUI = function(playerNum)
     end
 end
 
-function BaseInventoryZonePanel:new(x, y, width, height, player)
+function SafehouseInventoryZonePanel:new(x, y, width, height, player)
     x = getCore():getScreenWidth() / 2 - (width / 2)
     y = getCore():getScreenHeight() / 2 - (height / 2)
     local o = ISCollapsableWindowJoypad.new(self, x, y, width, height)
@@ -314,9 +346,9 @@ function BaseInventoryZonePanel:new(x, y, width, height, player)
     o.player = player
     o:setResizable(false)
     o.moveWithMouse = true
-    BaseInventoryZonePanel.instance = o
+    SafehouseInventoryZonePanel.instance = o
     o.buttonBorderColor = { r = 0.7, g = 0.7, b = 0.7, a = 0.5 }
     o.listTakesFocus = false
-    o:setTitle(getText("UI_BaseInventory_BaseInventoryTitle"))
+    o:setTitle(getText("UI_SafehouseInventory_SafehouseInventoryTitle"))
     return o
 end
