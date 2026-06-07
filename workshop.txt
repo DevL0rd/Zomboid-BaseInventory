@@ -13,9 +13,9 @@ Turn your base into one tidy, searchable stash — and never haul home a fourth 
 [h2]What it does[/h2]
 [list]
 [*][b]One tab, your whole base.[/b] Every container in your safehouse, merged into a single inventory.
-[*][b]All floors included.[/b] Basement, ground floor, that hoarder attic — all counted (toggleable per zone).
-[*][b]Stays put.[/b] The tab keeps itself selected as you wander and rummage, instead of snapping away the moment you glance at another container.
-[*][b]Loot without losing it.[/b] Taking items straight out of the tab no longer bumps you over to the container they came from — keep pulling from the whole base in one list.
+[*][b]All floors included.[/b] Basement, ground floor, that hoarder attic — all in one tab.
+[*][b]Stays put.[/b] The tab keeps itself selected as you wander and rummage.
+[*][b]Loot without losing it.[/b] Take items straight from the tab and stay right where you are.
 [*][b]Cook & craft from the whole base.[/b] Recipes pull from every container in the safehouse, not just the one you're standing at.
 [/list]
 
@@ -23,7 +23,7 @@ Turn your base into one tidy, searchable stash — and never haul home a fourth 
 Out scavenging? Any item you already keep at your safehouse gets a little house badge — anywhere in the world, in any container, on the floor, even in your own bags. Hover it and a tooltip tells you which safehouse has it, how many, and the total across all of them. No more mystery hoarding.
 
 [h2]Claim your home — even solo[/h2]
-Safehouses normally only work in multiplayer. This mod quietly patches them to work in [b]single-player[/b] too: walk into a building, right-click, [b]Claim Safehouse[/b], done. (Bonus: other mods that lean on safehouse mechanics get to work in solo play as well.)
+Safehouses normally only work in multiplayer. This mod lets you claim one in [b]single-player[/b] too: walk into a building, right-click, [b]Claim Safehouse[/b], done.
 
 [h2]Share with your crew[/h2]
 Playing together? Your safehouse zones are shared with the people you add as safehouse members — your stash, your rules, your roommates.
