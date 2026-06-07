@@ -296,24 +296,14 @@ Events.OnRefreshInventoryWindowContainers.Add(function(invSelf, state)
     if not ok then print("[SafehouseInventory] tab refresh error (" .. tostring(state) .. "): " .. tostring(err)) end
 end)
 
--- Sticky selection, handled generically: a real container becomes the selection through
--- selectContainer() -- clicking a tab in the UI (onBackpackClick), the scroll wheel, keyboard
--- prev/next -- and that releases our zone tab.
+-- Sticky selection: selecting any real container through selectContainer() -- a UI tab click
+-- (onBackpackClick), a world-container click, the scroll wheel, keyboard prev/next -- releases our
+-- zone tab; selecting one of our zone tabs locks it.
 --
--- EXCEPTION: looting an item from a zone tab makes the game re-select the item's *source*
--- container via selectButtonForContainer() (ISInventoryTransferAction). That's not the player
--- choosing a tab, so we must NOT release the tab then. selectButtonForContainer is only used by
--- transfer actions / vehicle doors (never by genuine tab/world clicks), so we flag those calls and
--- skip the sticky update while one is in progress.
-local old_selectButtonForContainer = ISInventoryPage.selectButtonForContainer
-function ISInventoryPage:selectButtonForContainer(container)
-    self._safehouseInvProgrammatic = true
-    local ok, ret = pcall(old_selectButtonForContainer, self, container)
-    self._safehouseInvProgrammatic = false
-    if not ok then error(ret) end
-    return ret
-end
-
+-- EXCEPTION: while you take items from a zone tab, ISInventoryTransferAction keeps re-selecting the
+-- item's source container (its update()/perform() call selectButtonForContainer). That's not the
+-- player choosing a tab. We flag the loot page only for the duration of those transfer methods and
+-- skip the release while flagged -- genuine selections aren't inside a transfer, so they're untouched.
 local old_selectContainer = ISInventoryPage.selectContainer
 function ISInventoryPage:selectContainer(button)
     if button and button.inventory and not self._safehouseInvProgrammatic then
@@ -322,6 +312,20 @@ function ISInventoryPage:selectContainer(button)
     end
     return old_selectContainer(self, button)
 end
+
+local function safehouseInvRunGuarded(action, orig)
+    local loot = getPlayerLoot and action.character and getPlayerLoot(action.character:getPlayerNum())
+    if loot then loot._safehouseInvProgrammatic = true end
+    local ok, err = pcall(orig, action)
+    if loot then loot._safehouseInvProgrammatic = false end
+    if not ok then error(err, 0) end
+end
+
+local old_ISInventoryTransferAction_update = ISInventoryTransferAction.update
+function ISInventoryTransferAction:update() safehouseInvRunGuarded(self, old_ISInventoryTransferAction_update) end
+
+local old_ISInventoryTransferAction_perform = ISInventoryTransferAction.perform
+function ISInventoryTransferAction:perform() safehouseInvRunGuarded(self, old_ISInventoryTransferAction_perform) end
 
 -- ── Right-click context menu (Manage zones) ─────────────────────────────────────────
 local function openZoneManager()

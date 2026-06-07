@@ -32,4 +32,5 @@ Playing together? Your safehouse zones are shared with the people you add as saf
 Works with vanilla and is friendly with CleanUI. Single-player and multiplayer both supported.
 
 [hr][/hr]
+[i]Open source (GPL-3.0) — modify it freely, just send your fixes back to the GitHub repo above instead of re-uploading your own copy. Keeps everyone on one version.[/i]
 Made with love <3
