@@ -25,8 +25,11 @@ rsync -a --delete \
 cp -f "$REPO_DIR/42/poster.png" "$WS/preview.png"
 
 # workshop.txt (title, tags, visibility, published id, description) is the canonical metadata kept
-# in the repo. Copy it straight over so edits publish on the next in-game upload.
-cp -f "$REPO_DIR/workshop.txt" "$WS/workshop.txt"
+# in the repo, with a human-readable multi-line description. Project Zomboid's parser, however,
+# requires EVERY description line to be prefixed with "description=" (single "description=" + raw
+# lines makes it drop the description and treat the item as new). Convert on the way out.
+awk '/^description=/&&!s{s=1;sub(/^description=/,"")} s{print "description=" $0; next} {print}' \
+  "$REPO_DIR/workshop.txt" > "$WS/workshop.txt"
 
 # Moved to Workshop staging: remove any old plain mods/ copy so the game doesn't load a duplicate.
 OLD="$ZOMBOID/mods/$NAME"

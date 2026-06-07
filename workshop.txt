@@ -1,7 +1,7 @@
 version=1
 id=3740163599
 title=Safehouse Inventory
-tags=Build 42;Interface;Multiplayer
+tags=Build 42;Interface;Misc;Multiplayer;QoL
 visibility=public
 description=[h1]Safehouse Inventory[/h1]
 Turn your base into one tidy, searchable stash — and never haul home a fourth hammer you didn't need again.
