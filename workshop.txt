@@ -15,6 +15,7 @@ Turn your base into one tidy, searchable stash — and never haul home a fourth 
 [*][b]One tab, your whole base.[/b] Every container in your safehouse, merged into a single inventory.
 [*][b]All floors included.[/b] Basement, ground floor, that hoarder attic — all counted (toggleable per zone).
 [*][b]Stays put.[/b] The tab keeps itself selected as you wander and rummage, instead of snapping away the moment you glance at another container.
+[*][b]Loot without losing it.[/b] Taking items straight out of the tab no longer bumps you over to the container they came from — keep pulling from the whole base in one list.
 [*][b]Cook & craft from the whole base.[/b] Recipes pull from every container in the safehouse, not just the one you're standing at.
 [/list]
 
