@@ -348,7 +348,11 @@ end
 
 -- Is the player the owner of, or a member of, this safehouse?
 function SafehouseInventoryManager.accessibleSafehouse(sh, playerObj)
-    if not sh or not playerObj then return false end
+    if not sh then return false end
+    -- Single-player: there is only one player and every claim is theirs, so don't gate on usernames
+    -- (which aren't reliably stable across save/reload in SP).
+    if not isClient() and not isServer() then return true end
+    if not playerObj then return false end
     local u = (playerObj.getUsername and playerObj:getUsername()) or ""
     if sh:getOwner() == u then return true end
     local players = sh:getPlayers()
@@ -372,6 +376,8 @@ end
 -- If the SafeHouse system is unavailable for some reason, fail open (don't hide zones).
 function SafehouseInventoryManager.playerCanAccessZone(playerObj, zone)
     if not zone then return false end
+    -- Single-player: all zones are the local player's; never hide them (membership is an MP concept).
+    if not isClient() and not isServer() then return true end
     if not (SafeHouse and SafeHouse.getSafehouseList) then return true end
     if not zone.safehouseId then return false end -- zone not tied to a safehouse
     local list = SafeHouse.getSafehouseList()

@@ -23,13 +23,13 @@ local BIT = SafehouseInventoryTab
 
 BIT.MARGIN = 3 -- tiles of slack around a zone
 
-BIT.options = PZAPI.ModOptions:create("SafehouseInventory", "Safehouse Inventory")
-BIT.isEnabled = BIT.options:addTickBox("SafehouseInventory_isEnabled", "Enable the Safehouse Inventory tabs", true)
--- "Have-at-base" indicator: a house badge on items you already store at a base zone, shown
+BIT.options = PZAPI.ModOptions:create("SafehouseInventory", getText("UI_SafehouseInventory_TabName"))
+BIT.isEnabled = BIT.options:addTickBox("SafehouseInventory_isEnabled", getText("UI_SafehouseInventory_Opt_Enable"), true)
+-- "Have-at-safehouse" indicator: a house badge on items you already store at a safehouse zone, shown
 -- on every item everywhere, plus a per-zone breakdown in the item tooltip. (See
 -- SafehouseInventoryIndex.lua / SafehouseInventoryIndicator.lua.)
-BIT.showBadge = BIT.options:addTickBox("SafehouseInventory_showBadge", "Show a house badge on items you have at your safehouse", true)
-BIT.showTooltip = BIT.options:addTickBox("SafehouseInventory_showTooltip", "Show safehouse stock (per zone) in item tooltips", true)
+BIT.showBadge = BIT.options:addTickBox("SafehouseInventory_showBadge", getText("UI_SafehouseInventory_Opt_Badge"), true)
+BIT.showTooltip = BIT.options:addTickBox("SafehouseInventory_showTooltip", getText("UI_SafehouseInventory_Opt_Tooltip"), true)
 
 -- Per-player state
 BIT.zoneItemContainer = {}    -- [playerNum][zoneKey] = ItemContainer ("safehouseInvZone")
@@ -160,7 +160,7 @@ local function addSafehouseInventoryButtons(invSelf)
         -- No zones in range: keep one empty tab so its right-click (Manage Zones) still works.
         local ph = getPlaceholderContainer(pnum)
         ph:clear()
-        invSelf:addContainerButton(ph, BIT.icon, "Safehouse Inventory")
+        invSelf:addContainerButton(ph, BIT.icon, getText("UI_SafehouseInventory_TabName"))
         BIT.allSynthetic[pnum][#BIT.allSynthetic[pnum] + 1] = ph
         return
     end

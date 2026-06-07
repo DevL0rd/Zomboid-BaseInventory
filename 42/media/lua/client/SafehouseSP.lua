@@ -84,7 +84,13 @@ function sendSafehouseClaim(square, playerObj, username)
     username = username or localUsername(playerObj)
     local ok, sh = pcall(SafeHouse.addSafeHouse, x, y, w, h, username)
     if ok and sh then
-        pcall(function() sh:setTitle((username ~= "" and username or "Safehouse") .. "'s Safehouse") end)
+        pcall(function()
+            if username and username ~= "" then
+                sh:setTitle(getText("UI_SafehouseInventory_OwnerSafehouse", username))
+            else
+                sh:setTitle(getText("UI_SafehouseInventory_TabName"))
+            end
+        end)
         safeSave()
         notifyChanged()
         print("[SafehouseSP] Claimed safehouse at " .. x .. "," .. y .. " (" .. w .. "x" .. h .. ") for '" .. tostring(username) .. "'.")
@@ -163,6 +169,21 @@ local function openSafehouseUI(safehouse, playerObj)
     ui:addToUIManager()
 end
 
+-- Avoid adding an option the menu already has (e.g. vanilla now adds "View Safehouse" for an
+-- existing safehouse in SP, and this guards against a double-add if the mod is loaded twice).
+local function hasOption(context, name)
+    if not (context and context.options) then return false end
+    for _, o in ipairs(context.options) do
+        if o.name == name then return true end
+    end
+    return false
+end
+
+local function addOptionOnce(context, name, target, onClick)
+    if hasOption(context, name) then return end
+    context:addOption(name, target, onClick)
+end
+
 Events.OnFillWorldObjectContextMenu.Add(function(playerNum, context, worldobjects, test)
     if test then return end
     if not isSP() then return end -- MP/dedicated already have the vanilla options
@@ -179,17 +200,15 @@ Events.OnFillWorldObjectContextMenu.Add(function(playerNum, context, worldobject
 
     local sh = SafeHouse and SafeHouse.getSafeHouse(square)
     if sh then
-        local isOwner = (sh.isOwner and sh:isOwner(playerObj)) or (sh:getOwner() == localUsername(playerObj))
-        if isOwner then
-            context:addOption(getText("ContextMenu_ViewSafehouse"), worldobjects, function()
-                openSafehouseUI(sh, playerObj)
-            end)
-            context:addOption(getText("ContextMenu_SafehouseRelease"), worldobjects, function()
-                sendSafehouseRelease(sh)
-            end)
-        end
+        -- In SP every claim is the local player's; show manage/release (deduped against vanilla).
+        addOptionOnce(context, getText("ContextMenu_ViewSafehouse"), worldobjects, function()
+            openSafehouseUI(sh, playerObj)
+        end)
+        addOptionOnce(context, getText("ContextMenu_SafehouseRelease"), worldobjects, function()
+            sendSafehouseRelease(sh)
+        end)
     elseif square:getBuilding() then
-        context:addOption(getText("ContextMenu_SafehouseClaim"), worldobjects, function()
+        addOptionOnce(context, getText("ContextMenu_SafehouseClaim"), worldobjects, function()
             sendSafehouseClaim(square, playerObj, localUsername(playerObj))
         end)
     end

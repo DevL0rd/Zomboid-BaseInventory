@@ -18,7 +18,7 @@
   "UI_SafehouseInventory_ZoneRenameButton": "Rename",
   "UI_SafehouseInventory_ZoneRemoveButton": "Remove",
   "UI_SafehouseInventory_CloseButton": "Close",
-  "UI_SafehouseInventory_SafehouseInventoryTitle": "Safehouse Inventory",
+  "UI_SafehouseInventory_SafehouseInventoryTitle": "Safehouse Zones",
   "UI_SafehouseInventory_ZoneRemove": "Remove zone '%1'?",
   "UI_SafehouseInventory_ZoneRename": "Rename zone '%1'",
   "UI_SafehouseInventory_Tooltip_AtBase": "At safehouse",
@@ -28,5 +28,9 @@
   "UI_SafehouseInventory_FloorSingle": "Floor %1",
   "UI_SafehouseInventory_ToggleFloorsAll": "Floors: All",
   "UI_SafehouseInventory_ToggleFloorsSingle": "Floors: This floor",
-  "UI_SafehouseInventory_NotInSafehouse": "You can only create a zone inside a safehouse you own or are a member of. Claim a safehouse first (right-click a building)."
+  "UI_SafehouseInventory_NotInSafehouse": "You can only create a zone inside a safehouse you own or are a member of. Claim a safehouse first (right-click a building).",
+  "UI_SafehouseInventory_Opt_Enable": "Enable the Safehouse Inventory tabs",
+  "UI_SafehouseInventory_Opt_Badge": "Show a house badge on items you have at your safehouse",
+  "UI_SafehouseInventory_Opt_Tooltip": "Show safehouse stock (per zone) in item tooltips",
+  "UI_SafehouseInventory_OwnerSafehouse": "%1's Safehouse"
 }
