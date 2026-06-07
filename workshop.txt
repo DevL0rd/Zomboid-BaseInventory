@@ -6,6 +6,8 @@ visibility=public
 description=[h1]Safehouse Inventory[/h1]
 Turn your base into one tidy, searchable stash — and never haul home a fourth hammer you didn't need again.
 
+[i]Like this? Also grab [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3740165370]Proximity Inventory[/url] — and [url=https://github.com/DevL0rd/Zomboid-BaseInventory]contribute / report bugs on GitHub[/url].[/i]
+
 [b]Safehouse Inventory[/b] adds a single tab to the loot window that gathers everything stored across your whole safehouse into one list. Crates, shelves, fridges, wardrobes, every floor from the basement to the attic — all in one place. Browse it, take from it, and even cook and craft straight out of your entire base while you're home.
 
 [h2]What it does[/h2]
