@@ -741,7 +741,156 @@ if not BaseInv._init then
             return _origTANew(class, character, item, srcContainer, destContainer, ...)
         end
     end
+
+    -- Reorder a list of items being taken into the player as a floor-aware nearest-neighbour route, so
+    -- grabbing several items spread across crates on different floors collects them a floor at a time
+    -- instead of bouncing up and down the stairs in weight order. Sorts the list in place; the per-item
+    -- walk wrap above then walks to each crate in this order.
+    function BaseInv.routeSortItems(playerNum, items)
+        local playerObj = getSpecificPlayer(playerNum)
+        if not (playerObj and items and #items >= 2) then return end
+        local FLOOR_PENALTY = 50
+        local pool = {}
+        for _, it in ipairs(items) do
+            local cont = it.getContainer and it:getContainer()
+            local outer = cont and cont:getOutermostContainer()
+            local obj = outer and outer:getParent()
+            local sq = obj and obj.getSquare and obj:getSquare()
+            pool[#pool + 1] = { item = it, sq = sq }
+        end
+        local curX, curY, curZ = playerObj:getX(), playerObj:getY(), math.floor(playerObj:getZ())
+        for w = 1, #items do
+            local bestIdx, bestD = 1, math.huge
+            for idx = 1, #pool do
+                local p = pool[idx]
+                local tx, ty, tz = curX, curY, curZ
+                if p.sq then tx, ty, tz = p.sq:getX(), p.sq:getY(), p.sq:getZ() end
+                local dx, dy = tx - curX, ty - curY
+                local d = math.sqrt(dx * dx + dy * dy) + math.abs(tz - curZ) * FLOOR_PENALTY
+                if d < bestD then bestD = d; bestIdx = idx end
+            end
+            local p = table.remove(pool, bestIdx)
+            items[w] = p.item
+            if p.sq then curX, curY, curZ = p.sq:getX(), p.sq:getY(), p.sq:getZ() end
+        end
+    end
+
+    -- True only when a take is worth routing: 2+ distinct source squares and at least one off our floor
+    -- or out of reach. Plain nearby single-crate takes keep vanilla's weight order untouched.
+    function BaseInv.takeNeedsRoute(playerObj, items)
+        if not (playerObj and items and #items >= 2) then return false end
+        local pz = math.floor(playerObj:getZ())
+        local squares, distinct, far = {}, 0, false
+        for _, it in ipairs(items) do
+            local cont = it.getContainer and it:getContainer()
+            local outer = cont and cont:getOutermostContainer()
+            local obj = outer and outer:getParent()
+            local sq = obj and obj.getSquare and obj:getSquare()
+            if sq then
+                if not squares[sq] then squares[sq] = true; distinct = distinct + 1 end
+                if sq:getZ() ~= pz or sq:DistToProper(playerObj) > 2.5 then far = true end
+            end
+        end
+        return distinct >= 2 and far
+    end
+
+    -- Route-sort the shared take path (multi-select drag, loot-all). We pre-sort, then neutralise
+    -- vanilla's weight re-sort for just this call so our order survives into the transfer queue.
+    if not BaseInv._takeSortPatched and ISInventoryPane then
+        BaseInv._takeSortPatched = true
+        local _origTransferByWeight = ISInventoryPane.transferItemsByWeight
+        function ISInventoryPane:transferItemsByWeight(items, container)
+            local routed = false
+            pcall(function()
+                local playerObj = getSpecificPlayer(self.player)
+                if playerObj and container and container.getOutermostContainer
+                    and container:getOutermostContainer() == playerObj:getInventory()
+                    and BaseInv.takeNeedsRoute(playerObj, items) then
+                    BaseInv.routeSortItems(self.player, items)
+                    routed = true
+                end
+            end)
+            if routed then
+                self.sortItemsByTypeAndWeight = function() end
+                local ok, err = pcall(_origTransferByWeight, self, items, container)
+                self.sortItemsByTypeAndWeight = nil
+                if not ok then error(err, 0) end
+                return
+            end
+            return _origTransferByWeight(self, items, container)
+        end
+
+        -- Double-clicking a stacked row grabs every copy in it. Index 1 of a stack is a dummy duplicate
+        -- (see getActualItems), so we route-sort the real items 2..N in place and the vanilla loop then
+        -- collects them floor-by-floor.
+        local _origDblClick = ISInventoryPane.onMouseDoubleClick
+        function ISInventoryPane:onMouseDoubleClick(x, y)
+            pcall(function()
+                local playerObj = getSpecificPlayer(self.player)
+                local row = self.items and self.mouseOverOption and self.items[self.mouseOverOption]
+                if playerObj and row and not instanceof(row, "InventoryItem") and row.items and #row.items > 2 then
+                    local sub = {}
+                    for i = 2, #row.items do sub[#sub + 1] = row.items[i] end
+                    if BaseInv.takeNeedsRoute(playerObj, sub) then
+                        BaseInv.routeSortItems(self.player, sub)
+                        for i = 2, #row.items do row.items[i] = sub[i - 1] end
+                    end
+                end
+            end)
+            return _origDblClick(self, x, y)
+        end
+    end
+
+    -- Right-click "Grab All" funnels through onGrabItems, which flattens its input with getActualItems
+    -- in input order. Handing it a route-ordered flat list makes it grab a floor at a time too.
+    if not BaseInv._grabPatched and ISInventoryPaneContextMenu then
+        BaseInv._grabPatched = true
+        local _origGrab = ISInventoryPaneContextMenu.onGrabItems
+        if _origGrab then
+            ISInventoryPaneContextMenu.onGrabItems = function(items, player)
+                pcall(function()
+                    local playerObj = getSpecificPlayer(player)
+                    local flat = ISInventoryPane.getActualItems(items)
+                    if playerObj and BaseInv.takeNeedsRoute(playerObj, flat) then
+                        BaseInv.routeSortItems(player, flat)
+                        items = flat
+                    end
+                end)
+                return _origGrab(items, player)
+            end
+        end
+    end
+
+    -- Drag-validity highlight: our synthetic tabs reject items via isItemAllowed/hasRoomFor, so the
+    -- vanilla drag overlay paints the dragged item red even though our drop handler accepts it (it sends
+    -- the item home). Each mod registers a predicate for its tab types; while a drag hovers one of them,
+    -- clear the per-item "can't drop" flags so the item shows as a valid drop.
+    BaseInv.homeTypePredicates = BaseInv.homeTypePredicates or {}
+    function BaseInv.isHomeTabType(t)
+        if not t then return false end
+        for i = 1, #BaseInv.homeTypePredicates do
+            if BaseInv.homeTypePredicates[i](t) then return true end
+        end
+        return false
+    end
+
+    if not BaseInv._dragHLPatched and ISInventoryPaneDraggedItems then
+        BaseInv._dragHLPatched = true
+        local _origDIUpdate = ISInventoryPaneDraggedItems.update
+        function ISInventoryPaneDraggedItems:update()
+            _origDIUpdate(self)
+            pcall(function()
+                local c = self.mouseOverContainer
+                if c and c.getType and self.itemNotOK and BaseInv.isHomeTabType(c:getType()) then
+                    table.wipe(self.itemNotOK)
+                end
+            end)
+        end
+    end
 end
+
+BaseInv.homeTypePredicates = BaseInv.homeTypePredicates or {}
+table.insert(BaseInv.homeTypePredicates, isSafehouseInvType)
 
 -- Drop onto a Safehouse Inventory tab -> send the items home (origin crate, else nearest zone crate).
 local function SHInv_nearestZoneCrate(playerObj)
