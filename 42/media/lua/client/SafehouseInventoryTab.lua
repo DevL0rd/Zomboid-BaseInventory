@@ -687,7 +687,9 @@ if not BaseInv._init then
             for _, c in ipairs(conts or {}) do if c == oc then push(c); break end end
         end
         local ft = item:getFullType()
-        local cat = item.getCategory and item:getCategory()
+        -- use the inventory's own display category (Ammo, Food, First Aid...), NOT getCategory() --
+        -- that one is the coarse engine class and lumps unrelated junk (a drink with ammo) together
+        local cat = item.getDisplayCategory and item:getDisplayCategory()
         local typeM, catM = {}, {}
         for _, c in ipairs(conts or {}) do
             if c and not seen[c] and c:getType() ~= "floor" then
@@ -700,7 +702,7 @@ if not BaseInv._init then
                         local it2 = its:get(i)
                         if it2 then
                             if it2:getFullType() == ft then tc = tc + 1 end
-                            if cat and it2.getCategory and it2:getCategory() == cat then cc = cc + 1 end
+                            if cat and it2.getDisplayCategory and it2:getDisplayCategory() == cat then cc = cc + 1 end
                         end
                     end
                     if tc > 0 then typeM[#typeM + 1] = { c = c, d = sq:DistToProper(playerObj) } end
@@ -715,18 +717,141 @@ if not BaseInv._init then
         return out
     end
 
+    -- Route a list of containers into a nearest-neighbour order from the player, penalising other floors
+    -- so we finish our own floor before the stairs (the walk still pathfinds fine). Sorts in place.
+    function BaseInv.routeContainers(playerObj, list)
+        if not (playerObj and list) or #list < 2 then return end
+        local FLOOR_PENALTY = 50
+        local cx, cy, cz = playerObj:getX(), playerObj:getY(), math.floor(playerObj:getZ())
+        for w = 1, #list do
+            local bi, bd = w, math.huge
+            for i = w, #list do
+                local o = list[i]:getParent()
+                local sq = o and o.getSquare and o:getSquare()
+                local tx, ty, tz = cx, cy, cz
+                if sq then tx, ty, tz = sq:getX(), sq:getY(), sq:getZ() end
+                local dx, dy = tx - cx, ty - cy
+                local d = math.sqrt(dx * dx + dy * dy) + math.abs(tz - cz) * FLOOR_PENALTY
+                if d < bd then bd = d; bi = i end
+            end
+            list[w], list[bi] = list[bi], list[w]
+            local o = list[w]:getParent()
+            local sq = o and o.getSquare and o:getSquare()
+            if sq then cx, cy, cz = sq:getX(), sq:getY(), sq:getZ() end
+        end
+    end
+
+    -- Move dragged items to their targets in two phases. First walk to each source the item isn't already
+    -- carried in and TAKE it into the player's inventory; then walk to each destination and DEPOSIT it.
+    -- Splitting it this way is what lets you send an item that lives in a distant safehouse crate to
+    -- another container -- the character fetches it, then carries it over -- instead of a single transfer
+    -- failing because the far source and the destination are never reachable at the same moment.
+    -- `plan` is a list of { item = <InventoryItem>, target = <ItemContainer> }.
+    function BaseInv.fetchThenDeposit(playerNum, plan)
+        local playerObj = getSpecificPlayer(playerNum)
+        if not (playerObj and plan) or #plan == 0 then return end
+        local inv = playerObj:getInventory()
+        BaseInv._managing = true  -- suppress the per-take auto-walk wrap; we do our own walking here
+        -- Phase 1: fetch everything not already in the player's inventory.
+        local fg, fo = {}, {}
+        for _, p in ipairs(plan) do
+            local src = p.item.getContainer and p.item:getContainer()
+            if src and src ~= inv and src:getOutermostContainer() ~= inv then
+                if not fg[src] then fg[src] = {}; fo[#fo + 1] = src end
+                table.insert(fg[src], p.item)
+            end
+        end
+        BaseInv.routeContainers(playerObj, fo)
+        for _, src in ipairs(fo) do
+            local o = src:getParent()
+            if (not o) or luautils.walkAdjObject(playerObj, o, true, true) then
+                for _, item in ipairs(fg[src]) do
+                    ISTimedActionQueue.add(ISInventoryTransferAction:new(playerObj, item, src, inv, nil))
+                end
+            end
+        end
+        -- Phase 2: deposit each item into its target (now coming from the inventory).
+        local dg, dord = {}, {}
+        for _, p in ipairs(plan) do
+            if p.target and p.target ~= inv and p.target ~= p.item:getContainer() then
+                if not dg[p.target] then dg[p.target] = {}; dord[#dord + 1] = p.target end
+                table.insert(dg[p.target], p.item)
+            end
+        end
+        BaseInv.routeContainers(playerObj, dord)
+        for _, T in ipairs(dord) do
+            local o = T:getParent()
+            if (not o) or luautils.walkAdjObject(playerObj, o, true, true) then
+                for _, item in ipairs(dg[T]) do
+                    ISTimedActionQueue.add(ISInventoryTransferAction:new(playerObj, item, inv, T, nil))
+                end
+            end
+        end
+        BaseInv._managing = false
+    end
+
+    -- Drop dragged items onto an ordinary EXTERNAL container (not a mod tab, not the player's own bags):
+    -- only step in when at least one item lives in a remote container a single transfer couldn't reach,
+    -- then fetch-and-deposit it (respecting the destination's weight). Returns true if it handled the
+    -- drop, false to let vanilla run (takes into your own inventory already walk to the source on their own).
+    function BaseInv.handleDropToContainer(playerNum, dest)
+        local playerObj = getSpecificPlayer(playerNum)
+        if not (playerObj and dest and ISMouseDrag.dragging) then return false end
+        local dt = dest.getType and dest:getType()
+        if dt == "proxInv" or dt == "floor" or dt == "safehouseInv" or dt == "safehouseInvZone" or dt == "safehouseInvCraft" then
+            return false
+        end
+        local inv = playerObj:getInventory()
+        if dest == inv or (dest.getOutermostContainer and dest:getOutermostContainer() == inv) then
+            return false
+        end
+        local dragging = ISInventoryPane.getActualItems(ISMouseDrag.dragging)
+        if not dragging then return false end
+        local anyRemote = false
+        for _, item in ipairs(dragging) do
+            local src = item.getContainer and item:getContainer()
+            if src and src ~= inv and src:getOutermostContainer() ~= inv then
+                local o = src:getParent()
+                local sq = o and o.getSquare and o:getSquare()
+                if sq and sq:DistToProper(playerObj) > 2.5 then anyRemote = true; break end
+            end
+        end
+        if not anyRemote then return false end  -- purely-near drops: let vanilla handle them
+        local plan, committed, skipNoRoom = {}, 0, 0
+        for _, item in ipairs(dragging) do
+            if item:getContainer() ~= dest then
+                local w = (item.getUnequippedWeight and item:getUnequippedWeight()) or 0
+                if dest.hasRoomFor and dest:hasRoomFor(playerObj, committed + w) then
+                    committed = committed + w
+                    plan[#plan + 1] = { item = item, target = dest }
+                else
+                    skipNoRoom = skipNoRoom + 1
+                end
+            end
+        end
+        if #plan > 0 then BaseInv.fetchThenDeposit(playerNum, plan) end
+        if HaloTextHelper and skipNoRoom > 0 then
+            HaloTextHelper.addBadText(playerObj, getText("UI_BaseInv_KeptNoRoom", skipNoRoom))
+        end
+        if ISMouseDrag.draggingFocus then
+            ISMouseDrag.draggingFocus:onMouseUp(0, 0)
+            ISMouseDrag.draggingFocus = nil
+        end
+        ISMouseDrag.dragging = nil
+        return true
+    end
+
     -- Send the currently-dragged items home. resolveFn(playerObj, item, origin) returns an ordered list
     -- of candidate containers; we take the first that fits the item within its weight capacity (tracking
-    -- the weight committed to each container across the whole drag), else leave the item put. Returns
-    -- true (the drop is handled); mirrors vanilla drag-state cleanup.
+    -- the weight committed to each container across the whole drag), else leave the item put with a toast
+    -- saying why. The actual movement (fetching far sources first) goes through fetchThenDeposit.
     function BaseInv.returnDropped(playerNum, resolveFn)
         local playerObj = getSpecificPlayer(playerNum)
         pcall(function()
             if not playerObj or not ISMouseDrag.dragging then return end
             local dragging = ISInventoryPane.getActualItems(ISMouseDrag.dragging)
             if not dragging then return end
-            local groups, order = {}, {}
-            local committed = {}            -- container -> weight already assigned this drag
+            local committed, plan = {}, {}
             local skipNoRoom, skipNoMatch = 0, 0
             for _, item in ipairs(dragging) do
                 local md = item.getModData and item:getModData()
@@ -742,43 +867,17 @@ if not BaseInv._init then
                     end
                 end
                 if target then
-                    if not groups[target] then groups[target] = {}; order[#order + 1] = target end
-                    table.insert(groups[target], item)
+                    plan[#plan + 1] = { item = item, target = target }
                 elseif #candidates > 0 then
                     skipNoRoom = skipNoRoom + 1   -- somewhere matched but everything was full
                 else
                     skipNoMatch = skipNoMatch + 1 -- nothing in scope to put it in
                 end
             end
+            if #plan > 0 then BaseInv.fetchThenDeposit(playerNum, plan) end
             if HaloTextHelper and playerObj then
                 if skipNoRoom > 0 then HaloTextHelper.addBadText(playerObj, getText("UI_BaseInv_KeptNoRoom", skipNoRoom)) end
                 if skipNoMatch > 0 then HaloTextHelper.addBadText(playerObj, getText("UI_BaseInv_KeptNoMatch", skipNoMatch)) end
-            end
-            -- Visit the destination crates as a nearest-neighbour route from where we stand, penalising
-            -- other floors so we finish our own floor before trekking up/down the stairs (the walk itself
-            -- still pathfinds fine). keepActions=true appends each walk so the legs don't wipe each other.
-            local FLOOR_PENALTY = 50
-            local curX, curY, curZ = playerObj:getX(), playerObj:getY(), math.floor(playerObj:getZ())
-            while #order > 0 do
-                local bestIdx, bestD = 1, math.huge
-                for idx = 1, #order do
-                    local o = order[idx]:getParent()
-                    local sq = o and o.getSquare and o:getSquare()
-                    local tx, ty, tz = curX, curY, curZ
-                    if sq then tx, ty, tz = sq:getX(), sq:getY(), sq:getZ() end
-                    local dx, dy = tx - curX, ty - curY
-                    local d = math.sqrt(dx * dx + dy * dy) + math.abs(tz - curZ) * FLOOR_PENALTY
-                    if d < bestD then bestD = d; bestIdx = idx end
-                end
-                local target = table.remove(order, bestIdx)
-                local o = target:getParent()
-                local sq = o and o.getSquare and o:getSquare()
-                if luautils.walkAdjObject(playerObj, o, true, true) then
-                    for _, item in ipairs(groups[target]) do
-                        ISTimedActionQueue.add(ISInventoryTransferAction:new(playerObj, item, item:getContainer(), target, nil))
-                    end
-                end
-                if sq then curX, curY, curZ = sq:getX(), sq:getY(), sq:getZ() end
             end
         end)
         if ISMouseDrag.draggingFocus then
@@ -819,7 +918,7 @@ if not BaseInv._init then
         local _origTANew = ISInventoryTransferAction.new
         function ISInventoryTransferAction.new(class, character, item, srcContainer, destContainer, ...)
             pcall(function()
-                if character and item and destContainer and character.getInventory
+                if not BaseInv._managing and character and item and destContainer and character.getInventory
                     and destContainer:getOutermostContainer() == character:getInventory() then
                     local cont = item.getContainer and item:getContainer()
                     local obj = cont and cont:getParent()
@@ -994,9 +1093,12 @@ end
 
 local _SHInv_origDropInContainer = ISInventoryPage.dropItemsInContainer
 function ISInventoryPage:dropItemsInContainer(button)
-    if BIT.isEnabled:getValue() and ISMouseDrag.dragging and button and button.inventory
-        and isSafehouseInvType(button.inventory:getType()) then
-        return BaseInv.returnDropped(self.player, SHInv_nearestZoneCrate)
+    if BIT.isEnabled:getValue() and ISMouseDrag.dragging and button and button.inventory then
+        if isSafehouseInvType(button.inventory:getType()) then
+            return BaseInv.returnDropped(self.player, SHInv_nearestZoneCrate)
+        elseif BaseInv.handleDropToContainer(self.player, button.inventory) then
+            return true
+        end
     end
     return _SHInv_origDropInContainer(self, button)
 end
@@ -1005,11 +1107,17 @@ end
 local _SHInv_origPaneMouseUp = ISInventoryPane.onMouseUp
 function ISInventoryPane:onMouseUp(x, y)
     if BIT.isEnabled:getValue() and ISMouseDrag.dragging ~= nil and ISMouseDrag.draggingFocus ~= self
-        and ISMouseDrag.draggingFocus ~= nil and self.inventory and isSafehouseInvType(self.inventory:getType()) then
-        BaseInv.returnDropped(self.player, SHInv_nearestZoneCrate)
-        self.selected = {}
-        self.draggingMarquis = false
-        return true
+        and ISMouseDrag.draggingFocus ~= nil and self.inventory then
+        if isSafehouseInvType(self.inventory:getType()) then
+            BaseInv.returnDropped(self.player, SHInv_nearestZoneCrate)
+            self.selected = {}
+            self.draggingMarquis = false
+            return true
+        elseif BaseInv.handleDropToContainer(self.player, self.inventory) then
+            self.selected = {}
+            self.draggingMarquis = false
+            return true
+        end
     end
     return _SHInv_origPaneMouseUp(self, x, y)
 end
