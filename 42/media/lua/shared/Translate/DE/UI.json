@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Die Unterschlupf-Inventar-Reiter aktivieren",
   "UI_SafehouseInventory_Opt_Badge": "Ein Haus-Symbol auf Gegenständen anzeigen, die du bereits im Unterschlupf hast",
   "UI_SafehouseInventory_Opt_Tooltip": "Unterschlupf-Bestand (pro Zone) in den Gegenstands-Tooltips anzeigen",
-  "UI_SafehouseInventory_OwnerSafehouse": "%1s Unterschlupf"
+  "UI_SafehouseInventory_OwnerSafehouse": "%1s Unterschlupf",
+  "UI_SafehouseInventory_ForgetOrigins": "Herkunft der Gegenstände vergessen",
+  "UI_BaseInv_KeptNoRoom": "Kein Platz für %1 Gegenstand(e) — behalten",
+  "UI_BaseInv_KeptNoMatch": "Kein passender Ort für %1 Gegenstand(e) — behalten",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Vor dem Herstellen zu den Unterschlupf-Kisten gehen und Zutaten holen",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Türen, die du beim Gehen geöffnet hast, hinter dir schließen"
 }

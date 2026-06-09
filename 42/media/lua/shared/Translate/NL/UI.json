@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Schakel de tabbladen van de Schuilplaats-inventaris in",
   "UI_SafehouseInventory_Opt_Badge": "Toon een huisbadge op voorwerpen die je al in je schuilplaats hebt",
   "UI_SafehouseInventory_Opt_Tooltip": "Toon schuilplaatsvoorraad (per zone) in voorwerptips",
-  "UI_SafehouseInventory_OwnerSafehouse": "Schuilplaats van %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "Schuilplaats van %1",
+  "UI_SafehouseInventory_ForgetOrigins": "Vergeten waar items vandaan kwamen",
+  "UI_BaseInv_KeptNoRoom": "Geen ruimte voor %1 item(s) — behouden",
+  "UI_BaseInv_KeptNoMatch": "Geen plek voor %1 item(s) — behouden",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Loop naar de kisten van de schuilplaats en haal ingrediënten op vóór het maken",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Deuren die je tijdens het lopen opende achter je sluiten"
 }

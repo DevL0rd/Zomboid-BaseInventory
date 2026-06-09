@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Activer les onglets Inventaire du refuge",
   "UI_SafehouseInventory_Opt_Badge": "Afficher un badge maison sur les objets déjà présents dans votre refuge",
   "UI_SafehouseInventory_Opt_Tooltip": "Afficher le stock du refuge (par zone) dans les infobulles des objets",
-  "UI_SafehouseInventory_OwnerSafehouse": "Refuge de %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "Refuge de %1",
+  "UI_SafehouseInventory_ForgetOrigins": "Oublier d'où viennent les objets",
+  "UI_BaseInv_KeptNoRoom": "Pas de place pour %1 objet(s) — gardés",
+  "UI_BaseInv_KeptNoMatch": "Aucun emplacement pour %1 objet(s) — gardés",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Aller jusqu'aux caisses du refuge chercher les ingrédients avant la fabrication",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Refermer derrière toi les portes ouvertes en chemin"
 }

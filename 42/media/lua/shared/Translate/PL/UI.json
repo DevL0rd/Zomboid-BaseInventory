@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Włącz karty ekwipunku kryjówki",
   "UI_SafehouseInventory_Opt_Badge": "Pokaż ikonę domu na przedmiotach, które już masz w kryjówce",
   "UI_SafehouseInventory_Opt_Tooltip": "Pokaż zapasy kryjówki (wg strefy) w podpowiedziach przedmiotów",
-  "UI_SafehouseInventory_OwnerSafehouse": "Kryjówka gracza %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "Kryjówka gracza %1",
+  "UI_SafehouseInventory_ForgetOrigins": "Zapomnij, skąd wzięły się przedmioty",
+  "UI_BaseInv_KeptNoRoom": "Brak miejsca na %1 przedmiot(y) — zatrzymano",
+  "UI_BaseInv_KeptNoMatch": "Nie ma gdzie odłożyć %1 przedmiot(y) — zatrzymano",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Przed wytwarzaniem podejdź do skrzyń w kryjówce po składniki",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Zamykaj za sobą drzwi otwarte podczas chodzenia"
 }

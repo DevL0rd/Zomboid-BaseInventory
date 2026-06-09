@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "안전가옥 보관함 탭 활성화",
   "UI_SafehouseInventory_Opt_Badge": "안전가옥에 이미 있는 아이템에 집 표시를 보여주기",
   "UI_SafehouseInventory_Opt_Tooltip": "아이템 툴팁에 안전가옥 보유량(구역별) 표시",
-  "UI_SafehouseInventory_OwnerSafehouse": "%1의 안전가옥"
+  "UI_SafehouseInventory_OwnerSafehouse": "%1의 안전가옥",
+  "UI_SafehouseInventory_ForgetOrigins": "아이템의 출처 잊기",
+  "UI_BaseInv_KeptNoRoom": "%1개를 넣을 공간이 부족함 — 그대로 보관",
+  "UI_BaseInv_KeptNoMatch": "%1개를 둘 곳이 없음 — 그대로 보관",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "제작 전에 안전가옥 상자로 걸어가 재료 가져오기",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "이동 중 열었던 문을 뒤에서 닫기"
 }

@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "启用安全屋物品栏标签页",
   "UI_SafehouseInventory_Opt_Badge": "在你安全屋中已有的物品上显示房屋标记",
   "UI_SafehouseInventory_Opt_Tooltip": "在物品提示中显示安全屋库存（按区域）",
-  "UI_SafehouseInventory_OwnerSafehouse": "%1 的安全屋"
+  "UI_SafehouseInventory_OwnerSafehouse": "%1 的安全屋",
+  "UI_SafehouseInventory_ForgetOrigins": "忘记物品来源",
+  "UI_BaseInv_KeptNoRoom": "没有空间存放 %1 件物品 — 已留在身上",
+  "UI_BaseInv_KeptNoMatch": "没有合适的容器存放 %1 件物品 — 已留在身上",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "制作前先走到安全屋的箱子取出所需材料",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "走动时自动关上你打开过的门"
 }

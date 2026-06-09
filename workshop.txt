@@ -17,7 +17,7 @@ Turn your base into one tidy, searchable stash — and never haul home a fourth 
 [*][b]Stays put.[/b] The tab keeps itself selected as you wander and rummage.
 [*][b]Loot without losing it.[/b] Take items straight from the tab and stay right where you are.
 [*][b]Cook & craft from the whole base.[/b] Recipes pull from every container in the safehouse, not just the one you're standing at.
-[*][b]Put it back where it came from.[/b] Drag an item onto the tab and your character carries it home to the exact crate it was taken from. Don't remember where it came from? It joins a crate that already holds the same item — and if nothing matches, it just stays in your bag instead of being dumped somewhere random.
+[*][b]Put it back, or just auto-sort it.[/b] Drag items onto the tab and your character carries each one home: to the exact crate it came from, or — if that's forgotten — a crate already holding the same item, or failing that one holding the same kind of thing. It respects each crate's weight limit, moving on to the next best crate when one fills up, and anything it can't place stays in your bag with a quick note telling you why.
 [*][b]Tidy as you go.[/b] Doors you open while walking around the base close themselves behind you.
 [/list]
 

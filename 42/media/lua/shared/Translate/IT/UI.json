@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Abilita le schede dell'Inventario del rifugio",
   "UI_SafehouseInventory_Opt_Badge": "Mostra un distintivo a forma di casa sugli oggetti che hai già nel rifugio",
   "UI_SafehouseInventory_Opt_Tooltip": "Mostra le scorte del rifugio (per zona) nei suggerimenti degli oggetti",
-  "UI_SafehouseInventory_OwnerSafehouse": "Rifugio di %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "Rifugio di %1",
+  "UI_SafehouseInventory_ForgetOrigins": "Dimentica da dove vengono gli oggetti",
+  "UI_BaseInv_KeptNoRoom": "Spazio insufficiente per %1 oggetto/i — tenuti",
+  "UI_BaseInv_KeptNoMatch": "Nessun posto adatto per %1 oggetto/i — tenuti",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Cammina fino alle casse del rifugio e prendi gli ingredienti prima di creare",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Chiudi dietro di te le porte che hai aperto mentre cammini"
 }

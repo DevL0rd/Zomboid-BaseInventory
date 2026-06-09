@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "เปิดใช้งานแท็บคลังเซฟเฮาส์",
   "UI_SafehouseInventory_Opt_Badge": "แสดงสัญลักษณ์บ้านบนไอเทมที่คุณมีในเซฟเฮาส์",
   "UI_SafehouseInventory_Opt_Tooltip": "แสดงจำนวนของในเซฟเฮาส์ (แยกตามโซน) ในคำอธิบายไอเทม",
-  "UI_SafehouseInventory_OwnerSafehouse": "เซฟเฮาส์ของ %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "เซฟเฮาส์ของ %1",
+  "UI_SafehouseInventory_ForgetOrigins": "ลืมว่าไอเทมมาจากไหน",
+  "UI_BaseInv_KeptNoRoom": "พื้นที่ไม่พอสำหรับ %1 ไอเทม — เก็บไว้กับตัว",
+  "UI_BaseInv_KeptNoMatch": "ไม่มีที่เก็บสำหรับ %1 ไอเทม — เก็บไว้กับตัว",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "เดินไปยังลังในเซฟเฮาส์เพื่อหยิบวัตถุดิบก่อนคราฟต์",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "ปิดประตูที่เปิดไว้ระหว่างเดินโดยอัตโนมัติ"
 }

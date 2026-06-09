@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Ativar as abas do Inventário do refúgio",
   "UI_SafehouseInventory_Opt_Badge": "Mostrar um selo de casa nos itens que você já tem no seu refúgio",
   "UI_SafehouseInventory_Opt_Tooltip": "Mostrar o estoque do refúgio (por zona) nas dicas dos itens",
-  "UI_SafehouseInventory_OwnerSafehouse": "Refúgio de %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "Refúgio de %1",
+  "UI_SafehouseInventory_ForgetOrigins": "Esquecer de onde os itens vieram",
+  "UI_BaseInv_KeptNoRoom": "Sem espaço para %1 item(ns) — mantidos",
+  "UI_BaseInv_KeptNoMatch": "Sem lugar para %1 item(ns) — mantidos",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Andar até os contêineres do refúgio e pegar os ingredientes antes de fabricar",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Fechar atrás de você as portas que abriu ao caminhar"
 }

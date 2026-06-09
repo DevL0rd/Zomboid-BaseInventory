@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Включить вкладки инвентаря убежища",
   "UI_SafehouseInventory_Opt_Badge": "Показывать значок дома на предметах, которые уже есть в вашем убежище",
   "UI_SafehouseInventory_Opt_Tooltip": "Показывать запасы убежища (по зонам) в подсказках предметов",
-  "UI_SafehouseInventory_OwnerSafehouse": "Убежище %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "Убежище %1",
+  "UI_SafehouseInventory_ForgetOrigins": "Забыть, откуда взяты предметы",
+  "UI_BaseInv_KeptNoRoom": "Нет места для %1 предм. — оставлены при себе",
+  "UI_BaseInv_KeptNoMatch": "Некуда положить %1 предм. — оставлены при себе",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Перед изготовлением идти к ящикам убежища за ингредиентами",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Закрывать за собой двери, открытые при ходьбе"
 }

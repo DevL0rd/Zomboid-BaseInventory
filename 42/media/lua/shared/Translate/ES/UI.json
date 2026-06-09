@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Activar las pestañas del Inventario del refugio",
   "UI_SafehouseInventory_Opt_Badge": "Mostrar un distintivo de casa en los objetos que ya tienes en tu refugio",
   "UI_SafehouseInventory_Opt_Tooltip": "Mostrar las existencias del refugio (por zona) en la información del objeto",
-  "UI_SafehouseInventory_OwnerSafehouse": "Refugio de %1"
+  "UI_SafehouseInventory_OwnerSafehouse": "Refugio de %1",
+  "UI_SafehouseInventory_ForgetOrigins": "Olvidar de dónde vinieron los objetos",
+  "UI_BaseInv_KeptNoRoom": "Sin espacio para %1 objeto(s) — conservados",
+  "UI_BaseInv_KeptNoMatch": "Sin sitio para %1 objeto(s) — conservados",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Caminar hasta los contenedores del refugio y recoger los ingredientes antes de fabricar",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Cerrar tras de ti las puertas que abriste al caminar"
 }

@@ -1,6 +1,8 @@
 {
   "UI_SafehouseInventory_ManageZonesButton": "Manage Safehouse zones",
   "UI_SafehouseInventory_ForgetOrigins": "Forget where items came from",
+  "UI_BaseInv_KeptNoRoom": "No room for %1 item(s) — kept them",
+  "UI_BaseInv_KeptNoMatch": "No spot for %1 item(s) — kept them",
   "UI_SafehouseInventory_TableName": "Name",
   "UI_SafehouseInventory_TableZone": "Zone",
   "UI_SafehouseInventory_TableInside": "Inside",

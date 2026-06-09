@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "セーフハウス所持品タブを有効にする",
   "UI_SafehouseInventory_Opt_Badge": "セーフハウスに既にあるアイテムに家のマークを表示する",
   "UI_SafehouseInventory_Opt_Tooltip": "アイテムのツールチップにセーフハウスの在庫（ゾーンごと）を表示する",
-  "UI_SafehouseInventory_OwnerSafehouse": "%1 のセーフハウス"
+  "UI_SafehouseInventory_OwnerSafehouse": "%1 のセーフハウス",
+  "UI_SafehouseInventory_ForgetOrigins": "アイテムの戻し先を忘れる",
+  "UI_BaseInv_KeptNoRoom": "%1個分の空きがありません — 手持ちのまま",
+  "UI_BaseInv_KeptNoMatch": "%1個の置き場所が見つかりません — 手持ちのまま",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "クラフト前にセーフハウスの保管庫まで歩いて材料を取りに行く",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "移動中に開けたドアを自動で閉める"
 }

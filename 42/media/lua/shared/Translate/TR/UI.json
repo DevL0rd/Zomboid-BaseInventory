@@ -32,5 +32,10 @@
   "UI_SafehouseInventory_Opt_Enable": "Güvenli Ev Envanteri sekmelerini etkinleştir",
   "UI_SafehouseInventory_Opt_Badge": "Güvenli evinde zaten bulunan eşyaların üzerinde bir ev rozeti göster",
   "UI_SafehouseInventory_Opt_Tooltip": "Eşya ipuçlarında güvenli ev stoğunu (bölgeye göre) göster",
-  "UI_SafehouseInventory_OwnerSafehouse": "%1 adlı oyuncunun güvenli evi"
+  "UI_SafehouseInventory_OwnerSafehouse": "%1 adlı oyuncunun güvenli evi",
+  "UI_SafehouseInventory_ForgetOrigins": "Eşyaların nereden geldiğini unut",
+  "UI_BaseInv_KeptNoRoom": "%1 eşya için yer yok — üzerinde kaldı",
+  "UI_BaseInv_KeptNoMatch": "%1 eşya için uygun yer yok — üzerinde kaldı",
+  "UI_SafehouseInventory_Opt_WalkToFetch": "Üretimden önce güvenli ev sandıklarına gidip malzemeleri al",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Yürürken açtığın kapıları arkandan kapat"
 }
