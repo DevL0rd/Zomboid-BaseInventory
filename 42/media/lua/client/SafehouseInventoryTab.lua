@@ -30,6 +30,10 @@ BIT.isEnabled = BIT.options:addTickBox("SafehouseInventory_isEnabled", getText("
 -- SafehouseInventoryIndex.lua / SafehouseInventoryIndicator.lua.)
 BIT.showBadge = BIT.options:addTickBox("SafehouseInventory_showBadge", getText("UI_SafehouseInventory_Opt_Badge"), true)
 BIT.showTooltip = BIT.options:addTickBox("SafehouseInventory_showTooltip", getText("UI_SafehouseInventory_Opt_Tooltip"), true)
+-- When ON (default), crafting that needs a zone item the player isn't holding makes the character
+-- walk to the crate and take it into their inventory first (per ingredient, so multiple containers =
+-- multiple trips). Turn OFF to consume zone items instantly at a distance instead.
+BIT.walkToFetch = BIT.options:addTickBox("SafehouseInventory_walkToFetch", getText("UI_SafehouseInventory_Opt_WalkToFetch"), true)
 
 -- Per-player state
 BIT.zoneItemContainer = {}    -- [playerNum][zoneKey] = ItemContainer ("safehouseInvZone")
@@ -454,6 +458,98 @@ ISInventoryPaneContextMenu.getContainers = function(character)
     end
 
     return list
+end
+
+-- ── Post-craft refresh + optional walk-to-fetch ──────────────────────────────────────
+-- Rebuild the loot window so an item consumed straight out of a zone crate stops showing in the tab.
+local function refreshLootFor(playerObj)
+    if not playerObj then return end
+    pcall(function()
+        local loot = getPlayerLoot(playerObj:getPlayerNum())
+        if loot and loot.refreshBackpacks then loot:refreshBackpacks() end
+    end)
+end
+
+-- Walk the character to each crate holding a needed ingredient that's out of reach, and take it into
+-- inventory BEFORE the craft runs. Per ingredient, so two ingredients in two crates = two trips.
+-- Best-effort: if a crate can't be reached, that item is left for the proxy to supply remotely, so the
+-- craft never breaks. Items already on the player / within reach are skipped (used directly).
+local function queueZoneFetch(playerObj, logic)
+    if not (playerObj and logic and logic.getRecipeData) then return end
+    local okRD, rd = pcall(function() return logic:getRecipeData() end)
+    if not okRD or not rd or not rd.getAllInputItems then return end
+    local okItems, items = pcall(function() return rd:getAllInputItems() end)
+    if not okItems or not items then return end
+    local inv = playerObj:getInventory()
+
+    -- Collect the out-of-reach world crates we need to visit (matches the engine's 2.5-tile gate);
+    -- items on the player / already within reach are left for the craft to use directly.
+    local targets = {}
+    for i = 0, items:size() - 1 do
+        pcall(function()
+            local item = items:get(i)
+            local cont = item and item:getContainer()
+            if not cont or cont == inv then return end
+            local outer = cont:getOutermostContainer()
+            local obj = outer and outer:getParent()
+            local sq = obj and obj.getSquare and obj:getSquare()
+            if sq and sq:DistToProper(playerObj) > 2.0 then
+                targets[#targets + 1] = { item = item, cont = cont, obj = obj, x = sq:getX(), y = sq:getY(), z = sq:getZ() }
+            end
+        end)
+    end
+    if #targets == 0 then return end
+
+    -- Greedy nearest-neighbour route: from where we stand, always head to the closest remaining crate,
+    -- then plan the next leg from THAT crate. Minimises back-and-forth without a full (expensive) TSP.
+    -- The game has no synchronous path-distance call, so we use straight-line X/Y distance plus a flat
+    -- per-floor penalty: a crate on another floor (through a ceiling/floor) is treated as much further,
+    -- since you actually have to detour to the stairs. (The walk itself still pathfinds up/down fine.)
+    local FLOOR_PENALTY = 50 -- "tiles" of detour added per floor of difference
+    local curX, curY, curZ = playerObj:getX(), playerObj:getY(), math.floor(playerObj:getZ())
+    while #targets > 0 do
+        local bestIdx, bestD = 1, math.huge
+        for idx = 1, #targets do
+            local t = targets[idx]
+            local dx, dy = t.x - curX, t.y - curY
+            local d = math.sqrt(dx * dx + dy * dy) + math.abs(t.z - curZ) * FLOOR_PENALTY
+            if d < bestD then bestD = d; bestIdx = idx end
+        end
+        local t = table.remove(targets, bestIdx)
+        -- keepActions=true so each walk is APPENDED to the queue rather than clearing it
+        if luautils.walkAdjObject(playerObj, t.obj, true, true) then
+            ISTimedActionQueue.add(ISInventoryTransferAction:new(playerObj, t.item, t.cont, inv, nil))
+        end
+        curX, curY, curZ = t.x, t.y, t.z -- plan the next leg from this crate
+    end
+end
+
+-- Shared hand-craft entry points: vanilla context-menu craft, vanilla craft window, and NeatCrafting
+-- all funnel through these. Pre-queue the fetch (when enabled) and refresh the tab after.
+if ISEntityUI then
+    local _origStart = ISEntityUI.HandcraftStart
+    if _origStart then
+        ISEntityUI.HandcraftStart = function(_player, _logic, force, addToQueue, eatPercentage)
+            if BIT.isEnabled:getValue() and BIT.walkToFetch:getValue() then pcall(queueZoneFetch, _player, _logic) end
+            return _origStart(_player, _logic, force, addToQueue, eatPercentage)
+        end
+    end
+    local _origMulti = ISEntityUI.HandcraftStartMultiple
+    if _origMulti then
+        ISEntityUI.HandcraftStartMultiple = function(_player, _logic, force, qty, addToQueue)
+            if BIT.isEnabled:getValue() and BIT.walkToFetch:getValue() then pcall(queueZoneFetch, _player, _logic) end
+            return _origMulti(_player, _logic, force, qty, addToQueue)
+        end
+    end
+end
+
+-- Refresh the tab after the craft consumes (so remotely-used zone items vanish from it immediately).
+if ISHandcraftAction and ISHandcraftAction.perform then
+    local _origHCPerform = ISHandcraftAction.perform
+    function ISHandcraftAction:perform()
+        _origHCPerform(self)
+        refreshLootFor(self.character)
+    end
 end
 
 print("[SafehouseInventory] Per-zone tabs (sticky selection) + crafting + context menu loaded.")
