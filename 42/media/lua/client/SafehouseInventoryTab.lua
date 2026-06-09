@@ -75,6 +75,22 @@ local function playerNearZone(px, py, pz, zone)
     return px >= x1 - m and px <= x2 + m and py >= y1 - m and py <= y2 + m
 end
 
+-- Persistent per-(player,zone) "floor" container gathering the zone's loose ground items. Ground
+-- loot isn't in any container (it's IsoWorldInventoryObjects on the square), so -- like the vanilla
+-- loot window's floor tab -- we collect it into one synthetic "floor" container, rebuilt each scan.
+-- Items are shared BY REFERENCE (getItems():add, never AddItem) so we never reparent or remove the
+-- real ground loot.
+BIT.zoneFloorContainer = {} -- [playerNum][zoneKey] = ItemContainer ("floor")
+local function getZoneFloorContainer(pnum, key)
+    BIT.zoneFloorContainer[pnum] = BIT.zoneFloorContainer[pnum] or {}
+    if not BIT.zoneFloorContainer[pnum][key] then
+        local c = ItemContainer.new("floor", nil, nil)
+        c:setExplored(true)
+        BIT.zoneFloorContainer[pnum][key] = c
+    end
+    return BIT.zoneFloorContainer[pnum][key]
+end
+
 -- Every zone the player is in range of, each with its loaded containers (may be empty).
 local function getInRangeZones(playerObj)
     local out = {}
@@ -83,16 +99,25 @@ local function getInRangeZones(playerObj)
     local px, py, pz = sq:getX(), sq:getY(), sq:getZ()
     local cell = getCell()
     if not cell then return out end
+    local pnum = playerObj:getPlayerNum()
 
     for _, zone in ipairs(getZones()) do
         if playerNearZone(px, py, pz, zone) and SafehouseInventoryManager.playerCanAccessZone(playerObj, zone) then
             local x1, y1, x2, y2, zz = zoneBounds(zone)
+            local key = zone.name or (x1 .. "," .. y1 .. "," .. zz)
             local seen, conts = {}, {}
+
+            -- gather loose floor loot into the zone's synthetic floor container
+            local floorCont = getZoneFloorContainer(pnum, key)
+            floorCont:getItems():clear()
+            local floorCount = 0
+
             for _, z in ipairs(zLevels(zone)) do
                 for x = x1, x2 do
                     for y = y1, y2 do
                         local s = cell:getGridSquare(x, y, z)
                         if s then
+                            -- real object containers (crates / shelves / fridges / counters / ...)
                             local objs = s:getObjects()
                             for i = 0, objs:size() - 1 do
                                 local obj = objs:get(i)
@@ -102,11 +127,22 @@ local function getInRangeZones(playerObj)
                                     conts[#conts + 1] = cont
                                 end
                             end
+                            -- loose items on the ground (no container -> share into floorCont)
+                            local wobs = s:getWorldObjects()
+                            if wobs then
+                                for i = 0, wobs:size() - 1 do
+                                    local wob = wobs:get(i)
+                                    local it = wob and wob:getItem()
+                                    if it then floorCont:getItems():add(it); floorCount = floorCount + 1 end
+                                end
+                            end
                         end
                     end
                 end
             end
-            out[#out + 1] = { zone = zone, key = (zone.name or (x1 .. "," .. y1 .. "," .. zz)), containers = conts }
+            if floorCount > 0 then conts[#conts + 1] = floorCont end
+
+            out[#out + 1] = { zone = zone, key = key, containers = conts }
         end
     end
     return out
@@ -359,23 +395,64 @@ function ISInventoryPage:onBackpackRightMouseDown(x, y)
     return old_onBackpackRightMouseDown(self, x, y)
 end
 
--- ── CRAFTING: pull from the whole base zone (real, loaded containers only) ───────────
+-- ── CRAFTING / BUILDING: make zone-stored items usable as materials ──────────────────
+-- Persistent per-player "craft proxy": a null-square synthetic container. The engine
+-- (BaseCraftingLogic.isContainersAccessible) rejects the WHOLE craft if ANY container in the pool is
+-- more than 2.5 tiles from the player -- so feeding it our real, far-away zone crates killed crafting
+-- the instant a zone was in range, even for an item already in your hand. That distance check is
+-- skipped when a container has no square (outer.getSquare() == null), so a synthetic container always
+-- counts as "accessible". We pour the zone's items into it (shared references): the items stay
+-- craftable from anywhere, and the engine consumes each from its real container (no distance check at
+-- consume time). This is the same shape Proximity uses, and why Proximity never broke crafting.
+BIT.craftProxy = {} -- [playerNum] = ItemContainer ("safehouseInvCraft")
+local function getCraftProxy(pnum)
+    if not BIT.craftProxy[pnum] then
+        local c = ItemContainer.new("safehouseInvCraft", nil, nil)
+        c:setExplored(true)
+        BIT.craftProxy[pnum] = c
+    end
+    return BIT.craftProxy[pnum]
+end
+
 local orig_getContainers = ISInventoryPaneContextMenu.getContainers
 ISInventoryPaneContextMenu.getContainers = function(character)
     local list = orig_getContainers(character)
     if not character or not list then return list end
 
     local pnum = character:getPlayerNum()
+    -- strip our synthetic loot-window tabs so their shared items aren't double-counted
     for _, c in ipairs(BIT.allSynthetic[pnum] or {}) do
         if list:contains(c) then list:remove(c) end
     end
 
+    -- Pour the zone's items (crates + loose floor loot) into the accessible craft proxy, deduped at
+    -- the ITEM level: anything already present in the pool -- a crate you're standing at, or floor
+    -- loot the engine already lists in its own floor tab right under you -- is skipped, so no item is
+    -- ever counted twice.
     local ok, conts = pcall(getZoneContainersFlat, character)
-    if ok and conts then
+    if ok and conts and #conts > 0 then
+        local seen = {}
+        for ci = 0, list:size() - 1 do
+            local its = list:get(ci):getItems()
+            for ii = 0, its:size() - 1 do seen[its:get(ii)] = true end
+        end
+        local proxy = getCraftProxy(pnum)
+        proxy:getItems():clear()
         for i = 1, #conts do
-            if not list:contains(conts[i]) then list:add(conts[i]) end
+            local its = conts[i]:getItems()
+            for ii = 0, its:size() - 1 do
+                local it = its:get(ii)
+                if it and not seen[it] then
+                    proxy:getItems():add(it)
+                    seen[it] = true
+                end
+            end
+        end
+        if proxy:getItems():size() > 0 and not list:contains(proxy) then
+            list:add(proxy)
         end
     end
+
     return list
 end
 
