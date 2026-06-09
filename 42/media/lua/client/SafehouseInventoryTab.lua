@@ -579,7 +579,7 @@ end
 -- ── Auto-close doors opened while walking ────────────────────────────────────────────
 -- Close a door the character opened by pathing through it, once they've walked clear. Only doors that
 -- were SHUT when reached are closed back; doors already standing open are left as they were.
-local _doorState = {} -- [playerNum] = { prev = sq, wasClosed = {[door]=true} (this tile only), opened = {[door]=doorSq} }
+local _doorState = {} -- [playerNum] = { prev = sq, closedSeen = {[door]=true}, opened = {[door]=doorSq} }
 
 local function _asDoor(o)
     if o and o.IsOpen and o.getSquare and o.ToggleDoorSilent then return o end
@@ -596,27 +596,33 @@ Events.OnPlayerUpdate.Add(function(playerObj)
         if not cur then return end
         local pnum = playerObj:getPlayerNum()
         local st = _doorState[pnum]
-        if not st then st = { prev = nil, wasClosed = {}, opened = {} }; _doorState[pnum] = st end
+        if not st then st = { prev = nil, closedSeen = {}, opened = {} }; _doorState[pnum] = st end
 
-        -- Crossed into a new tile? The door behind us, if it was one we opened, gets queued to close.
-        -- (st.wasClosed still holds the PREVIOUS tile's closed edge-doors, recorded last frame.)
+        -- Crossed into a new tile? If the door we just came through is open and we'd seen it closed a
+        -- moment ago, it's one we opened by walking through -- queue it to close behind us.
         if st.prev and st.prev ~= cur then
             local d = _asDoor(st.prev:getDoorTo(cur))
-            if d and d:IsOpen() and not _doorBlocked(d) and st.wasClosed[d] then
+            if d and d:IsOpen() and not _doorBlocked(d) and st.closedSeen[d] then
                 st.opened[d] = d:getSquare()
             end
         end
+        st.prev = cur
 
-        -- Refresh the candidate set to THIS tile's closed edge-doors (bounded to <=4, no accumulation).
-        st.wasClosed = {}
+        -- Forget remembered-closed doors we've stepped well clear of (keeps the set tiny).
+        for d in pairs(st.closedSeen) do
+            local dsq = d.getSquare and d:getSquare()
+            if (not dsq) or dsq:DistTo(playerObj) > 3 then st.closedSeen[d] = nil end
+        end
+        -- Remember the edge-doors around us that are currently CLOSED. Crucially this is NOT wiped when a
+        -- door opens -- the character opens a door while still on the near tile, so if we forgot it the
+        -- instant it opened (the old bug) the crossing check above would never recognise it as ours.
         local cell = getCell()
         local x, y, z = cur:getX(), cur:getY(), cur:getZ()
         for _, n in ipairs({ { x + 1, y }, { x - 1, y }, { x, y + 1 }, { x, y - 1 } }) do
             local nsq = cell:getGridSquare(n[1], n[2], z)
             local d = nsq and _asDoor(cur:getDoorTo(nsq))
-            if d and not d:IsOpen() and not _doorBlocked(d) then st.wasClosed[d] = true end
+            if d and not d:IsOpen() and not _doorBlocked(d) then st.closedSeen[d] = true end
         end
-        st.prev = cur
 
         -- Close each opened door once we've stepped clear of it.
         for d, dsq in pairs(st.opened) do
@@ -752,13 +758,15 @@ if not BaseInv._init then
         if not (playerObj and plan) or #plan == 0 then return end
         local inv = playerObj:getInventory()
         BaseInv._managing = true  -- suppress the per-take auto-walk wrap; we do our own walking here
-        -- Phase 1: fetch everything not already in the player's inventory.
-        local fg, fo = {}, {}
+        -- Phase 1: fetch everything stored in a remote container (not carried on the player) into the
+        -- inventory. Items already in your inventory or bags are left where they are.
+        local fg, fo, fetched = {}, {}, {}
         for _, p in ipairs(plan) do
             local src = p.item.getContainer and p.item:getContainer()
             if src and src ~= inv and src:getOutermostContainer() ~= inv then
                 if not fg[src] then fg[src] = {}; fo[#fo + 1] = src end
                 table.insert(fg[src], p.item)
+                fetched[p.item] = true
             end
         end
         BaseInv.routeContainers(playerObj, fo)
@@ -783,7 +791,11 @@ if not BaseInv._init then
             local o = T:getParent()
             if (not o) or luautils.walkAdjObject(playerObj, o, true, true) then
                 for _, item in ipairs(dg[T]) do
-                    ISTimedActionQueue.add(ISInventoryTransferAction:new(playerObj, item, inv, T, nil))
+                    -- fetched items are now in the inventory; everything else transfers straight from
+                    -- wherever it already sits (main inventory OR a bag). Forcing the main inventory as
+                    -- the source broke items kept in a backpack -- the transfer went invalid.
+                    local srcC = fetched[item] and inv or item:getContainer()
+                    ISTimedActionQueue.add(ISInventoryTransferAction:new(playerObj, item, srcC, T, nil))
                 end
             end
         end
