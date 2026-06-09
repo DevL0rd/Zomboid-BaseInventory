@@ -747,6 +747,31 @@ if not BaseInv._init then
         end
     end
 
+    -- Expose the exact source/destination containers of an in-progress managed move in getContainers
+    -- whenever the player is adjacent to them. After auto-walking to a crate and back, the loot window
+    -- hasn't re-listed the container you returned to, so a deposit transfer would fail its isValid
+    -- (destination "not reachable") and clear the queue. Force-listing them closes that refresh gap.
+    BaseInv._forceInclude = BaseInv._forceInclude or {}
+    if not BaseInv._getContainersPatched and ISInventoryPaneContextMenu then
+        BaseInv._getContainersPatched = true
+        local _bi_origGetConts = ISInventoryPaneContextMenu.getContainers
+        ISInventoryPaneContextMenu.getContainers = function(character)
+            local list = _bi_origGetConts(character)
+            pcall(function()
+                if character and list then
+                    for c in pairs(BaseInv._forceInclude) do
+                        local o = c.getParent and c:getParent()
+                        local sq = o and o.getSquare and o:getSquare()
+                        if sq and sq:DistToProper(character) <= 2.5 and not list:contains(c) then
+                            list:add(c)
+                        end
+                    end
+                end
+            end)
+            return list
+        end
+    end
+
     -- Move dragged items to their targets in two phases. First walk to each source the item isn't already
     -- carried in and TAKE it into the player's inventory; then walk to each destination and DEPOSIT it.
     -- Splitting it this way is what lets you send an item that lives in a distant safehouse crate to
@@ -758,6 +783,13 @@ if not BaseInv._init then
         if not (playerObj and plan) or #plan == 0 then return end
         local inv = playerObj:getInventory()
         BaseInv._managing = true  -- suppress the per-take auto-walk wrap; we do our own walking here
+        -- force this move's sources/destinations into getContainers while we're adjacent to them
+        BaseInv._forceInclude = {}
+        for _, p in ipairs(plan) do
+            if p.target then BaseInv._forceInclude[p.target] = true end
+            local s = p.item.getContainer and p.item:getContainer()
+            if s then BaseInv._forceInclude[s] = true end
+        end
         -- Phase 1: fetch everything stored in a remote container (not carried on the player) into the
         -- inventory. Items already in your inventory or bags are left where they are.
         local fg, fo, fetched = {}, {}, {}
