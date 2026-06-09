@@ -1,5 +1,6 @@
 {
   "UI_SafehouseInventory_ManageZonesButton": "Manage Safehouse zones",
+  "UI_SafehouseInventory_ForgetOrigins": "Forget where items came from",
   "UI_SafehouseInventory_TableName": "Name",
   "UI_SafehouseInventory_TableZone": "Zone",
   "UI_SafehouseInventory_TableInside": "Inside",
