@@ -17,7 +17,12 @@ Turn your base into one tidy, searchable stash — and never haul home a fourth 
 [*][b]Stays put.[/b] The tab keeps itself selected as you wander and rummage.
 [*][b]Loot without losing it.[/b] Take items straight from the tab and stay right where you are.
 [*][b]Cook & craft from the whole base.[/b] Recipes pull from every container in the safehouse, not just the one you're standing at.
+[*][b]Put it back where it came from.[/b] Drag an item onto the tab and your character carries it home to the exact crate it was taken from.
+[*][b]Tidy as you go.[/b] Doors you open while walking around the base close themselves behind you.
 [/list]
+
+[h2]Crafting that does the legwork[/h2]
+Crafting from your base isn't just bookkeeping. Your character actually walks to the crates that hold what's needed — shortest route first, across any floor — grabs the ingredients, then gets to work. Prefer the old instant grab-from-anywhere? Every bit of this is a toggle in the mod options.
 
 [h2]The "do I already have this?" badge[/h2]
 Out scavenging? Any item you already keep at your safehouse gets a little house badge — anywhere in the world, in any container, on the floor, even in your own bags. Hover it and a tooltip tells you which safehouse has it, how many, and the total across all of them. No more mystery hoarding.

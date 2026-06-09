@@ -33,5 +33,6 @@
   "UI_SafehouseInventory_Opt_Badge": "Show a house badge on items you have at your safehouse",
   "UI_SafehouseInventory_Opt_Tooltip": "Show safehouse stock (per zone) in item tooltips",
   "UI_SafehouseInventory_Opt_WalkToFetch": "Walk to safehouse crates and fetch ingredients before crafting",
+  "UI_SafehouseInventory_Opt_AutoCloseDoors": "Close doors behind you that you opened while walking",
   "UI_SafehouseInventory_OwnerSafehouse": "%1's Safehouse"
 }

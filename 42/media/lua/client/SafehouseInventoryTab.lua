@@ -34,6 +34,9 @@ BIT.showTooltip = BIT.options:addTickBox("SafehouseInventory_showTooltip", getTe
 -- walk to the crate and take it into their inventory first (per ingredient, so multiple containers =
 -- multiple trips). Turn OFF to consume zone items instantly at a distance instead.
 BIT.walkToFetch = BIT.options:addTickBox("SafehouseInventory_walkToFetch", getText("UI_SafehouseInventory_Opt_WalkToFetch"), true)
+-- Close doors the character opens by walking through them, once they've walked clear. Only doors that
+-- were CLOSED when reached are closed back -- doors already standing open are left as they were.
+BIT.autoCloseDoors = BIT.options:addTickBox("SafehouseInventory_autoCloseDoors", getText("UI_SafehouseInventory_Opt_AutoCloseDoors"), true)
 
 -- Per-player state
 BIT.zoneItemContainer = {}    -- [playerNum][zoneKey] = ItemContainer ("safehouseInvZone")
@@ -550,6 +553,162 @@ if ISHandcraftAction and ISHandcraftAction.perform then
         _origHCPerform(self)
         refreshLootFor(self.character)
     end
+end
+
+-- ── Auto-close doors opened while walking ────────────────────────────────────────────
+-- Close a door the character opened by pathing through it, once they've walked clear. Only doors that
+-- were SHUT when reached are closed back; doors already standing open are left as they were.
+local _doorState = {} -- [playerNum] = { prev = sq, wasClosed = {[door]=true} (this tile only), opened = {[door]=doorSq} }
+
+local function _asDoor(o)
+    if o and o.IsOpen and o.getSquare and o.ToggleDoorSilent then return o end
+    return nil
+end
+local function _doorBlocked(d)
+    return (d.isBarricaded and d:isBarricaded()) or false
+end
+
+Events.OnPlayerUpdate.Add(function(playerObj)
+    if not playerObj or not BIT.isEnabled:getValue() or not BIT.autoCloseDoors:getValue() then return end
+    pcall(function()
+        local cur = playerObj:getCurrentSquare()
+        if not cur then return end
+        local pnum = playerObj:getPlayerNum()
+        local st = _doorState[pnum]
+        if not st then st = { prev = nil, wasClosed = {}, opened = {} }; _doorState[pnum] = st end
+
+        -- Crossed into a new tile? The door behind us, if it was one we opened, gets queued to close.
+        -- (st.wasClosed still holds the PREVIOUS tile's closed edge-doors, recorded last frame.)
+        if st.prev and st.prev ~= cur then
+            local d = _asDoor(st.prev:getDoorTo(cur))
+            if d and d:IsOpen() and not _doorBlocked(d) and st.wasClosed[d] then
+                st.opened[d] = d:getSquare()
+            end
+        end
+
+        -- Refresh the candidate set to THIS tile's closed edge-doors (bounded to <=4, no accumulation).
+        st.wasClosed = {}
+        local cell = getCell()
+        local x, y, z = cur:getX(), cur:getY(), cur:getZ()
+        for _, n in ipairs({ { x + 1, y }, { x - 1, y }, { x, y + 1 }, { x, y - 1 } }) do
+            local nsq = cell:getGridSquare(n[1], n[2], z)
+            local d = nsq and _asDoor(cur:getDoorTo(nsq))
+            if d and not d:IsOpen() and not _doorBlocked(d) then st.wasClosed[d] = true end
+        end
+        st.prev = cur
+
+        -- Close each opened door once we've stepped clear of it.
+        for d, dsq in pairs(st.opened) do
+            if not d:IsOpen() then
+                st.opened[d] = nil
+            elseif dsq and dsq:DistTo(playerObj) > 1.5 then
+                d:ToggleDoorSilent()
+                st.opened[d] = nil
+            end
+        end
+    end)
+end)
+
+-- ── BaseInv: remember where items came from, send them home on drag-back ─────────────
+-- Shared between Safehouse Inventory and Proximity Inventory (same modData key + helpers). Defined
+-- once; whichever mod loads first sets it up, the other reuses it.
+BaseInv = BaseInv or {}
+if not BaseInv._init then
+    BaseInv._init = true
+
+    -- Resolve the real container an item came from, from its stamped origin {x,y,z,type}.
+    function BaseInv.findOriginContainer(origin)
+        if not (origin and origin.x) then return nil end
+        local cell = getCell()
+        local sq = cell and cell:getGridSquare(origin.x, origin.y, origin.z)
+        if not sq then return nil end
+        local objs = sq:getObjects()
+        for i = 0, objs:size() - 1 do
+            local o = objs:get(i)
+            local c = o and o:getContainer()
+            if c and (not origin.type or c:getType() == origin.type) then return c end
+        end
+        return nil
+    end
+
+    -- Send the currently-dragged items home: each to its origin crate (or fallbackFn's container),
+    -- walking there first. Returns true (the drop is handled). Mirrors vanilla drag-state cleanup.
+    function BaseInv.returnDropped(page, fallbackFn)
+        local playerObj = getSpecificPlayer(page.player)
+        pcall(function()
+            if not playerObj or not ISMouseDrag.dragging then return end
+            local dragging = ISInventoryPane.getActualItems(ISMouseDrag.dragging)
+            if not dragging then return end
+            local groups, order = {}, {}
+            for _, item in ipairs(dragging) do
+                local md = item.getModData and item:getModData()
+                local target = BaseInv.findOriginContainer(md and md.BaseInv_origin) or (fallbackFn and fallbackFn(playerObj, page))
+                if target and target:getParent() then
+                    if not groups[target] then groups[target] = {}; order[#order + 1] = target end
+                    table.insert(groups[target], item)
+                end
+            end
+            for _, target in ipairs(order) do
+                -- keepActions=true: append each walk so multiple destinations don't wipe each other
+                if luautils.walkAdjObject(playerObj, target:getParent(), true, true) then
+                    for _, item in ipairs(groups[target]) do
+                        ISTimedActionQueue.add(ISInventoryTransferAction:new(playerObj, item, item:getContainer(), target, nil))
+                    end
+                end
+            end
+        end)
+        if ISMouseDrag.draggingFocus then
+            ISMouseDrag.draggingFocus:onMouseUp(0, 0)
+            ISMouseDrag.draggingFocus = nil
+        end
+        ISMouseDrag.dragging = nil
+        pcall(function() page.inventoryPane.selected = {} end)
+        return true
+    end
+
+    -- Stamp an item's origin crate when it's taken from a world container into the player's inventory.
+    if not BaseInv._stampPatched and ISInventoryTransferAction then
+        BaseInv._stampPatched = true
+        local _origTAPerform = ISInventoryTransferAction.perform
+        function ISInventoryTransferAction:perform()
+            pcall(function()
+                local it = self.item
+                local cont = it and it:getContainer()
+                if it and cont and self.character and self.destContainer
+                    and self.destContainer:getOutermostContainer() == self.character:getInventory() then
+                    local obj = cont:getParent()
+                    local sq = obj and obj.getSquare and obj:getSquare()
+                    if sq then
+                        it:getModData().BaseInv_origin = { x = sq:getX(), y = sq:getY(), z = sq:getZ(), type = cont:getType() }
+                    end
+                end
+            end)
+            return _origTAPerform(self)
+        end
+    end
+end
+
+-- Drop onto a Safehouse Inventory tab -> send the items home (origin crate, else nearest zone crate).
+local function SHInv_nearestZoneCrate(playerObj)
+    local best, bestD = nil, math.huge
+    for _, c in ipairs(getZoneContainersFlat(playerObj)) do
+        local o = c:getParent()
+        local sq = o and o.getSquare and o:getSquare()
+        if sq and c:getType() ~= "floor" then
+            local d = sq:DistToProper(playerObj)
+            if d < bestD then bestD = d; best = c end
+        end
+    end
+    return best
+end
+
+local _SHInv_origDropInContainer = ISInventoryPage.dropItemsInContainer
+function ISInventoryPage:dropItemsInContainer(button)
+    if BIT.isEnabled:getValue() and ISMouseDrag.dragging and button and button.inventory
+        and isSafehouseInvType(button.inventory:getType()) then
+        return BaseInv.returnDropped(self, SHInv_nearestZoneCrate)
+    end
+    return _SHInv_origDropInContainer(self, button)
 end
 
 print("[SafehouseInventory] Per-zone tabs (sticky selection) + crafting + context menu loaded.")
